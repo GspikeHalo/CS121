@@ -173,7 +173,7 @@ def sort_frequency(words_frequency: dict) -> list[tuple]:
         if not isinstance(words_frequency, dict):
             raise TypeError("Input must be a dictionary")
 
-        return sorted(words_frequency.items(), key = lambda item: (-item[1], item[0]))
+        return sorted(words_frequency.items(), key=lambda item: (-item[1], item[0]))
 
     except TypeError as e:
         print(f"Error: {e} - 'sort_frequency' function expects a dictionary input")
