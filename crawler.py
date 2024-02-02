@@ -2,7 +2,6 @@ import logging
 import re
 from urllib.parse import urlparse, urljoin
 from lxml import html, etree
-from collections import Counter
 
 logger = logging.getLogger(__name__)
 
@@ -202,8 +201,10 @@ class AnalyticsContainer:
             file.write("\nLongest Page:\n")
             file.write(f"URL: {self._longest_page['url']}, Word Count: {self._longest_page['word_count']}\n")
             file.write("\nWord Count:\n")
-            for word, count in self._word_count.items():
-                file.write(f"{word}: {count}\n")
+
+            sorted_word_count = sorted(self._word_count.items(), key=lambda item: (-item[1], item[0]))
+            for i in range(50):
+                print(f"{sorted_word_count[i][0]}\t{sorted_word_count[i][1]}")
 
 
 class HelperFunction:
