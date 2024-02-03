@@ -123,28 +123,36 @@ class Crawler:
         filter out crawler traps. Duplicated urls will be taken care of by frontier. You don't need to check for duplication
         in this method
         """
+        # Initialize valid flag as True. It will be set to False if any invalidating condition is met.
         valid = True
+        # Parse the URL into components.
         parsed = urlparse(url)
-
+        # Retrieve the history of detected traps to avoid revisiting them.
         trap_history = self.counter.get_trap()
+        # If the URL is in the trap history, return False immediately.
         if url in trap_history:
             return False
 
+        # Parse the query parameters from the URL
         params = parse_qs(parsed.query)
+        # Construct base URL without query parameters.
         base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
+        # Check for increasing sequence in the parameters which might indicate a trap.
         for param, values in params.items():
             for value in values:
                 if self.is_increasing_sequence(base_url, param, value):
-                    """Potential trap detected: url (param has increasing values)"""
+                    # Detected a potential trap based on parameter sequence.
                     return False
 
+        # Check if the URL's scheme is either HTTP or HTTPS. Invalidate otherwise.
         if parsed.scheme not in set(["http", "https"]):
             valid = False
         try:
+            # Check if the URL's hostname contains '.ics.uci.edu'. Invalidate if not.
             if ".ics.uci.edu" not in parsed.hostname:
                 valid = False
-
+            # Invalidate URLs that point to resources with certain file extensions.
             if re.search(r"\.(css|js|bmp|gif|jpeg|jpg|ico|png|tiff|mid|mp2|mp3|mp4"
                          r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
                          r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1"
@@ -155,16 +163,20 @@ class Crawler:
             print("TypeError for ", parsed)
             valid = False
 
+        # Invalidate URLs that are unusually long (over 200 characters).
         if len(url) > 200:
             valid = False
 
+        # Invalidate URLs where a single path segment is repeated (a common trap pattern).
         path_segments = parsed.path.split('/')
         if any(path_segments.count(segment) > 1 for segment in path_segments):
             valid = False
 
+        # Invalidate URLs with too many query parameters, potentially indicating a trap.
         if len(parsed.query.split('&')) > 10:
             valid = False
 
+        # If the URL is found to be invalid, update the trap counter.
         if not valid:
             self.counter.update_trap(url)
 
