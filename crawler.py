@@ -55,9 +55,10 @@ class Crawler:
             return ""
 
     """helper function"""
+
     def is_increasing_sequence(self, base_url, param, value):
         try:
-            value = int(value)  #check if value is a number
+            value = int(value)  # check if value is a number
         except ValueError:
             # if not a number just stop and return false
             return False
@@ -98,22 +99,28 @@ class Crawler:
 
         Suggested library: lxml
         """
+        # check if "content" in url_data dictionary is empty, contains only spaces, or HTTP status code other than 200
         if url_data['content'] is None or not url_data['content'].strip() or url_data['http_code'] != 200:
             return []
 
+        # if the content exists and the status code is 200, store the content in the variable
         content = url_data['content']
+
+        # choose the base URL based on redirect or not
         base_url = url_data['final_url'] if url_data['is_redirected'] else url_data['url']
 
         try:
+            # try parsing a html tree from content
             tree = html.fromstring(content)
-        except etree.ParserError:
+        except etree.ParserError:  # import program robustness
             return []
 
         links = []
+        # Iterate over the href attribute of all <a> tags
         for element in tree.xpath('//a/@href'):
             link = element.strip()
             if link:
-                absolute_url = urljoin(base_url, link)
+                absolute_url = urljoin(base_url, link)  # Convert relative links to absolute links
                 links.append(absolute_url)
         return links
 
@@ -244,11 +251,11 @@ class AnalyticsContainer:
             file.write("SubDomain:\n")
             for subdomain, num in self._subdomain.items():
                 file.write(f"{subdomain}\tnum of subdomains:{num}\n")
-            file.write("Download URL:\n")
-            for download_url, num in self._download_url.items():
-                file.write(f"{download_url}\tnum of urls{num}\n")
             file.write("\nMax Out Links:\n")
             file.write(f"URL: {self._max_out_links['url']}, Count: {self._max_out_links['count']}\n")
+            file.write("Download URL:\n")
+            for download_url, num in self._download_url.items():
+                file.write(f"{download_url}\tnum of out links:{num}\n")
             file.write("\nTraps:\n")
             for trap in self._trap:
                 file.write(f"{trap}\n")
