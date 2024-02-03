@@ -235,8 +235,11 @@ class AnalyticsContainer:
             file.write("\n50 Most Common Word Count:\n")
 
             sorted_word_count = sorted(self._word_count.items(), key=lambda item: (-item[1], item[0]))
-            for i in range(50):
-                print(f"{sorted_word_count[i][0]}\t{sorted_word_count[i][1]}")
+            # for i in range(50):
+            #     print(f"{sorted_word_count[i][0]}\t{sorted_word_count[i][1]}")
+            for i in range(min(50, len(sorted_word_count))):
+                word, count = sorted_word_count[i]
+                file.write(f"{word}\t{count}\n")
 
 
 class HelperFunction:
