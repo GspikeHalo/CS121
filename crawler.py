@@ -38,9 +38,21 @@ class Crawler:
                         out_link_count += 1
 
             url = url_data['final_url'] if url_data['is_redirected'] else url_data['url']
-            self.counter.update_subdomains(url, out_link_count)
+            subdomain = self.extract_subdomain(url)
+            self.counter.update_download_url(url, out_link_count)
             self.counter.update_longest_page(url, self.count_page_length(url_data))
+            self.counter.update_subdomain(subdomain)
         self.counter.get_report()
+
+    @staticmethod
+    def extract_subdomain(url):
+        parsed_url = urlparse(url)
+        hostname = parsed_url.netloc
+        parts = hostname.split('.')
+        if len(parts) > 2:
+            return '.'.join(parts[:-2])
+        else:
+            return ""
 
     """helper function"""
     def is_increasing_sequence(self, base_url, param, value):
@@ -161,7 +173,8 @@ class Crawler:
 
 class AnalyticsContainer:
     def __init__(self):
-        self._subdomains = {}
+        self._download_url = {}
+        self._subdomain = {}
         self._max_out_links = {"url": None, "count": 0}
         self._trap = set()
         self._longest_page = {"url": None, "word_count": 0}
@@ -174,10 +187,16 @@ class AnalyticsContainer:
         print(HelperFunction.tokenize(content))
         return set(HelperFunction.tokenize(content))
 
-    def update_subdomains(self, url, count) -> None:
-        if url not in self._subdomains:
-            self._subdomains[url] = count
+    def update_download_url(self, url, count) -> None:
+        if url not in self._download_url:
+            self._download_url[url] = count
             self.update_max_out_links(url, count)
+
+    def update_subdomain(self, url):
+        if url not in self._subdomain:
+            self._subdomain[url] = 1
+        else:
+            self._subdomain[url] += 1
 
     def update_max_out_links(self, url, count) -> None:
         if self._max_out_links["count"] < count:
@@ -198,8 +217,8 @@ class AnalyticsContainer:
         else:
             self._word_count[word] = 1
 
-    def get_subdomains(self):
-        return self._subdomains
+    def get_download_url(self):
+        return self._download_url
 
     def get_max_out_links(self):
         return self._max_out_links
@@ -222,9 +241,12 @@ class AnalyticsContainer:
 
     def get_report(self):
         with open("AnalysisReport.txt", "w", encoding="UTF-8") as file:
-            file.write("Subdomains:\n")
-            for subdomain in self._subdomains.keys():
-                file.write(f"{subdomain}\n")
+            file.write("SubDomain:\n")
+            for subdomain, num in self._subdomain.items():
+                file.write(f"{subdomain}\tnum of subdomains:{num}\n")
+            file.write("Download URL:\n")
+            for download_url, num in self._download_url.items():
+                file.write(f"{download_url}\tnum of urls{num}\n")
             file.write("\nMax Out Links:\n")
             file.write(f"URL: {self._max_out_links['url']}, Count: {self._max_out_links['count']}\n")
             file.write("\nTraps:\n")
@@ -235,8 +257,11 @@ class AnalyticsContainer:
             file.write("\n50 Most Common Word Count:\n")
 
             sorted_word_count = sorted(self._word_count.items(), key=lambda item: (-item[1], item[0]))
-            for i in range(50):
-                print(f"{sorted_word_count[i][0]}\t{sorted_word_count[i][1]}")
+            # for i in range(50):
+            #     print(f"{sorted_word_count[i][0]}\t{sorted_word_count[i][1]}")
+            for i in range(min(50, len(sorted_word_count))):
+                word, count = sorted_word_count[i]
+                file.write(f"{word}\t{count}\n")
 
 
 class HelperFunction:
