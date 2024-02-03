@@ -130,28 +130,36 @@ class Crawler:
         filter out crawler traps. Duplicated urls will be taken care of by frontier. You don't need to check for duplication
         in this method
         """
+        # Initialize valid flag as True. It will be set to False if any invalidating condition is met.
         valid = True
+        # Parse the URL into components.
         parsed = urlparse(url)
-
+        # Retrieve the history of detected traps to avoid revisiting them.
         trap_history = self.counter.get_trap()
+        # If the URL is in the trap history, return False immediately.
         if url in trap_history:
             return False
 
+        # Parse the query parameters from the URL
         params = parse_qs(parsed.query)
+        # Construct base URL without query parameters.
         base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
+        # Check for increasing sequence in the parameters which might indicate a trap.
         for param, values in params.items():
             for value in values:
                 if self.is_increasing_sequence(base_url, param, value):
-                    """Potential trap detected: url (param has increasing values)"""
+                    # Detected a potential trap based on parameter sequence.
                     return False
 
+        # Check if the URL's scheme is either HTTP or HTTPS. Invalidate otherwise.
         if parsed.scheme not in set(["http", "https"]):
             valid = False
         try:
+            # Check if the URL's hostname contains '.ics.uci.edu'. Invalidate if not.
             if ".ics.uci.edu" not in parsed.hostname:
                 valid = False
-
+            # Invalidate URLs that point to resources with certain file extensions.
             if re.search(r"\.(css|js|bmp|gif|jpeg|jpg|ico|png|tiff|mid|mp2|mp3|mp4"
                          r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
                          r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1"
@@ -162,89 +170,111 @@ class Crawler:
             print("TypeError for ", parsed)
             valid = False
 
+        # Invalidate URLs that are unusually long (over 200 characters).
         if len(url) > 200:
             valid = False
 
+        # Invalidate URLs where a single path segment is repeated (a common trap pattern).
         path_segments = parsed.path.split('/')
         if any(path_segments.count(segment) > 1 for segment in path_segments):
             valid = False
 
+        # Invalidate URLs with too many query parameters, potentially indicating a trap.
         if len(parsed.query.split('&')) > 10:
             valid = False
 
+        # If the URL is found to be invalid, update the trap counter.
         if not valid:
             self.counter.update_trap(url)
 
         return valid
 
 
-class AnalyticsContainer:
+class AnalyticsContainer:  # container class for analytics
     def __init__(self):
-        self._download_url = {}
-        self._subdomain = {}
-        self._max_out_links = {"url": None, "count": 0}
-        self._trap = set()
-        self._longest_page = {"url": None, "word_count": 0}
-        self._word_count = {}
-        self._stopwords = self.get_stop_words()
+        # initializes containers to track various analytics during crawling
+        self._download_url = {}  # tracks the count of downloads per URL
+        self._subdomain = {}  # tracks the number of URLs visited per subdomain
+        self._max_out_links = {"url": None,
+                               "count": 0}  # keeps the URL with the maximum out links and the count
+        self._trap = set()  # a set to keep track of identified crawler traps
+        self._longest_page = {"url": None,
+                              "word_count": 0}  # records the longest page by word count
+        self._word_count = {}  # counts occurrences of each word across all pages
+        self._stopwords = self.get_stop_words()  # loads a set of stopwords to exclude from word counts
 
     @staticmethod
     def get_stop_words():
+        # loads stopwords from a text file and returns them as a set for filtering
         content = HelperFunction.get_content("stop_words.txt")
         print(HelperFunction.tokenize(content))
         return set(HelperFunction.tokenize(content))
 
     def update_download_url(self, url, count) -> None:
+        # updates the download count for a given URL
+        # updates max out links if applicable
         if url not in self._download_url:
             self._download_url[url] = count
             self.update_max_out_links(url, count)
 
     def update_subdomain(self, url):
+        # increments the count of URLs visited for the subdomain of the given URL
         if url not in self._subdomain:
             self._subdomain[url] = 1
         else:
             self._subdomain[url] += 1
 
     def update_max_out_links(self, url, count) -> None:
+        # updates the record of the URL with the most out links if the current count exceeds the maximum
         if self._max_out_links["count"] < count:
             self._max_out_links["url"] = url
             self._max_out_links["count"] = count
 
     def update_trap(self, url):
+        # adds a URL to the set of identified crawler traps
         self._trap.add(url)
 
     def update_longest_page(self, url, word_count):
+        # updates the record of the longest page if the current page's word count exceeds the maximum
         if self._longest_page["word_count"] < word_count:
             self._longest_page["url"] = url
             self._longest_page["word_count"] = word_count
 
     def update_word_count(self, word):
+        # updates the frequency count of a word across all crawled pages
         if word in self._word_count:
             self._word_count[word] += 1
         else:
             self._word_count[word] = 1
 
     def get_download_url(self):
+        # returns the dictionary tracking download counts per URL
         return self._download_url
 
     def get_max_out_links(self):
+        # returns the record of the URL with the most out links
         return self._max_out_links
 
     def get_trap(self):
+        # returns the set of identified crawler traps
         return self._trap
 
     def get_longest_page(self):
+        # returns the record of the longest page by word count
         return self._longest_page
 
     def get_word_count(self):
+        # returns the dictionary of word frequencies across all crawled pages
         return self._word_count
 
     def count_page_length(self, content):
+        # counts the number of words in the given content, excluding stopwords
         content = HelperFunction.tokenize(content)
         for word in content:
             if word not in self._stopwords:
                 self.update_word_count(word)
         return len(content)
+
 
     def get_report(self):
         with open("AnalysisReport.txt", "w", encoding="UTF-8") as file:
