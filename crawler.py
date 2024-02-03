@@ -183,6 +183,7 @@ class Crawler:
         if len(parsed.query.split('&')) > 10:
             valid = False
 
+
         # If the URL is found to be invalid, update the trap counter.
         if not valid:
             self.counter.update_trap(url)
@@ -283,7 +284,7 @@ class AnalyticsContainer:  # container class for analytics
                 file.write(f"{subdomain}\tnum of subdomains:{num}\n")
             file.write("\nMax Out Links:\n")
             file.write(f"URL: {self._max_out_links['url']}, Count: {self._max_out_links['count']}\n")
-            file.write("Download URL:\n")
+            file.write("\nDownload URL:\n")
             for download_url, num in self._download_url.items():
                 file.write(f"{download_url}\tnum of out links:{num}\n")
             file.write("\nTraps:\n")
