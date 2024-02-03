@@ -4,6 +4,7 @@ from urllib.parse import urlparse, urljoin, parse_qs
 from lxml import html, etree
 from collections import defaultdict
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +28,8 @@ class Crawler:
         while self.frontier.has_next_url():
             out_link_count = 0
             url = self.frontier.get_next_url()
-            logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url, self.frontier.fetched,
+            logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url,
+                        self.frontier.fetched,
                         len(self.frontier))
             url_data = self.corpus.fetch_url(url)
 
@@ -55,9 +57,10 @@ class Crawler:
             return ""
 
     """helper function"""
+
     def is_increasing_sequence(self, base_url, param, value):
         try:
-            value = int(value)  #check if value is a number
+            value = int(value)  # check if value is a number
         except ValueError:
             # if not a number just stop and return false
             return False
@@ -76,7 +79,8 @@ class Crawler:
         return False
 
     def count_page_length(self, url_data: dict):
-        if url_data['content'] is None or not url_data['content'].strip() or url_data['http_code'] != 200:
+        if url_data['content'] is None or not url_data['content'].strip() or url_data[
+            'http_code'] != 200:
             return 0
         content = url_data["content"]
 
@@ -98,7 +102,8 @@ class Crawler:
 
         Suggested library: lxml
         """
-        if url_data['content'] is None or not url_data['content'].strip() or url_data['http_code'] != 200:
+        if url_data['content'] is None or not url_data['content'].strip() or url_data[
+            'http_code'] != 200:
             return []
 
         content = url_data['content']
@@ -183,68 +188,85 @@ class Crawler:
         return valid
 
 
-class AnalyticsContainer:
+class AnalyticsContainer:  # container class
     def __init__(self):
-        self._download_url = {}
-        self._subdomain = {}
-        self._max_out_links = {"url": None, "count": 0}
-        self._trap = set()
-        self._longest_page = {"url": None, "word_count": 0}
-        self._word_count = {}
-        self._stopwords = self.get_stop_words()
+        # initializes containers to track various analytics during crawling
+        self._download_url = {}  # tracks the count of downloads per URL
+        self._subdomain = {}  # tracks the number of URLs visited per subdomain
+        self._max_out_links = {"url": None,
+                               "count": 0}  # keeps the URL with the maximum out links and the count
+        self._trap = set()  # a set to keep track of identified crawler traps
+        self._longest_page = {"url": None,
+                              "word_count": 0}  # records the longest page by word count
+        self._word_count = {}  # counts occurrences of each word across all pages
+        self._stopwords = self.get_stop_words()  # loads a set of stopwords to exclude from word counts
 
     @staticmethod
     def get_stop_words():
+        # loads stopwords from a text file and returns them as a set for filtering
         content = HelperFunction.get_content("stop_words.txt")
         print(HelperFunction.tokenize(content))
         return set(HelperFunction.tokenize(content))
 
     def update_download_url(self, url, count) -> None:
+        # updates the download count for a given URL
+        # updates max out links if applicable
         if url not in self._download_url:
             self._download_url[url] = count
             self.update_max_out_links(url, count)
 
     def update_subdomain(self, url):
+        # increments the count of URLs visited for the subdomain of the given URL
         if url not in self._subdomain:
             self._subdomain[url] = 1
         else:
             self._subdomain[url] += 1
 
     def update_max_out_links(self, url, count) -> None:
+        # updates the record of the URL with the most out links if the current count exceeds the maximum
         if self._max_out_links["count"] < count:
             self._max_out_links["url"] = url
             self._max_out_links["count"] = count
 
     def update_trap(self, url):
+        # adds a URL to the set of identified crawler traps
         self._trap.add(url)
 
     def update_longest_page(self, url, word_count):
+        # updates the record of the longest page if the current page's word count exceeds the maximum
         if self._longest_page["word_count"] < word_count:
             self._longest_page["url"] = url
             self._longest_page["word_count"] = word_count
 
     def update_word_count(self, word):
+        # updates the frequency count of a word across all crawled pages
         if word in self._word_count:
             self._word_count[word] += 1
         else:
             self._word_count[word] = 1
 
     def get_download_url(self):
+        # returns the dictionary tracking download counts per URL
         return self._download_url
 
     def get_max_out_links(self):
+        # returns the record of the URL with the most out links
         return self._max_out_links
 
     def get_trap(self):
+        # returns the set of identified crawler traps
         return self._trap
 
     def get_longest_page(self):
+        # returns the record of the longest page by word count
         return self._longest_page
 
     def get_word_count(self):
+        # returns the dictionary of word frequencies across all crawled pages
         return self._word_count
 
     def count_page_length(self, content):
+        # counts the number of words in the given content, excluding stopwords
         content = HelperFunction.tokenize(content)
         for word in content:
             if word not in self._stopwords:
@@ -252,7 +274,8 @@ class AnalyticsContainer:
         return len(content)
 
     def get_report(self):
-        with open("AnalysisReport.txt", "w", encoding="UTF-8") as file:
+        # generates a report of the analytics collected during crawling and writes it to a file
+        with open("AnalysisReport.txt", "w", encoding = "UTF-8") as file:
             file.write("SubDomain:\n")
             for subdomain, num in self._subdomain.items():
                 file.write(f"{subdomain}\tnum of subdomains:{num}\n")
@@ -260,15 +283,18 @@ class AnalyticsContainer:
             for download_url, num in self._download_url.items():
                 file.write(f"{download_url}\tnum of urls{num}\n")
             file.write("\nMax Out Links:\n")
-            file.write(f"URL: {self._max_out_links['url']}, Count: {self._max_out_links['count']}\n")
+            file.write(
+                f"URL: {self._max_out_links['url']}, Count: {self._max_out_links['count']}\n")
             file.write("\nTraps:\n")
             for trap in self._trap:
                 file.write(f"{trap}\n")
             file.write("\nLongest Page:\n")
-            file.write(f"URL: {self._longest_page['url']}, Word Count: {self._longest_page['word_count']}\n")
+            file.write(
+                f"URL: {self._longest_page['url']}, Word Count: {self._longest_page['word_count']}\n")
             file.write("\n50 Most Common Word Count:\n")
 
-            sorted_word_count = sorted(self._word_count.items(), key=lambda item: (-item[1], item[0]))
+            sorted_word_count = sorted(self._word_count.items(),
+                                       key = lambda item: (-item[1], item[0]))
             # for i in range(50):
             #     print(f"{sorted_word_count[i][0]}\t{sorted_word_count[i][1]}")
             for i in range(min(50, len(sorted_word_count))):
@@ -296,7 +322,7 @@ class HelperFunction:
             if not isinstance(name, str):
                 raise TypeError("Input must be a string")
 
-            with open(name, 'r', encoding='utf-8', errors='replace') as file:
+            with open(name, 'r', encoding = 'utf-8', errors = 'replace') as file:
                 for line in file:
                     content.append(line)
 
@@ -394,7 +420,7 @@ class HelperFunction:
             if not isinstance(words_frequency, dict):
                 raise TypeError("Input must be a dictionary")
 
-            return sorted(words_frequency.items(), key=lambda item: (-item[1], item[0]))
+            return sorted(words_frequency.items(), key = lambda item: (-item[1], item[0]))
 
         except TypeError as e:
             print(f"Error: {e} - 'sort_frequency' function expects a dictionary input")
