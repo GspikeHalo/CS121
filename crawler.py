@@ -1,7 +1,8 @@
 import logging
 import re
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, parse_qs
 from lxml import html, etree
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class Crawler:
         self.frontier = frontier
         self.corpus = corpus
         self.counter = AnalyticsContainer()
+        self.param_value_history = defaultdict(lambda: defaultdict(list))
 
     def start_crawling(self):
         """
@@ -39,6 +41,27 @@ class Crawler:
             self.counter.update_subdomains(url, out_link_count)
             self.counter.update_longest_page(url, self.count_page_length(url_data))
         self.counter.get_report()
+
+    """helper function"""
+    def is_increasing_sequence(self, base_url, param, value):
+        try:
+            value = int(value)  #check if value is a number
+        except ValueError:
+            # if not a number just stop and return false
+            return False
+
+        history = self.param_value_history[base_url][param]
+
+        if not history or value > history[-1]:
+            history.append(value)
+            if len(history) > 3:  # if this query happen more than 3 times, and end with a number
+                # we check if this number is increasing
+                return all(x < y for x, y in zip(history, history[1:]))
+        else:
+            # if value is not increasing, clear the history
+            self.param_value_history[base_url][param] = [value]
+
+        return False
 
     def count_page_length(self, url_data: dict):
         if url_data['content'] is None or not url_data['content'].strip() or url_data['http_code'] != 200:
@@ -94,6 +117,15 @@ class Crawler:
         trap_history = self.counter.get_trap()
         if url in trap_history:
             return False
+
+        params = parse_qs(parsed.query)
+        base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+        for param, values in params.items():
+            for value in values:
+                if self.is_increasing_sequence(base_url, param, value):
+                    """Potential trap detected: url (param has increasing values)"""
+                    return False
 
         if parsed.scheme not in set(["http", "https"]):
             valid = False
@@ -200,7 +232,7 @@ class AnalyticsContainer:
                 file.write(f"{trap}\n")
             file.write("\nLongest Page:\n")
             file.write(f"URL: {self._longest_page['url']}, Word Count: {self._longest_page['word_count']}\n")
-            file.write("\nWord Count:\n")
+            file.write("\n50 Most Common Word Count:\n")
 
             sorted_word_count = sorted(self._word_count.items(), key=lambda item: (-item[1], item[0]))
             for i in range(50):
