@@ -45,11 +45,17 @@ class Log:
             log.writelines(lines)
 
     def get_latest_log(self):
-        with open(self._log_path, "r") as log:
-            lines = log.readlines()
-            if not lines:
-                return ""
-            return lines[-1]
+        try:
+            with open(self._log_path, "r") as log:
+                lines = log.readlines()
+                if lines:
+                    return lines[-1]
+                else:
+                    return ""
+        except FileNotFoundError:
+            with open(self._log_path, "w") as log:
+                pass
+            return ""
 
 
 if __name__ == '__main__':
