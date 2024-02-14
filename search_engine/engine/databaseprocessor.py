@@ -13,13 +13,12 @@ class DatabaseProcessor:
     def __init__(self, update_time=100):
         self._db = None
         self._log = Log("../../database/db_log.txt")
-        self._raw_pages = RawWebpages()
         self._raw_webpage_processor = RawWebpageProcessor()
         self._token_processor = TokenProcessor()
         self._inverted_index_processor = InvertedIndexProcessor()
         self._UPDATE_TIME = update_time
 
-    def open_db(self, db_path="../../database/tf_idf_index.db"):
+    def open_db(self, raw_pages: RawWebpages, db_path="../../database/tf_idf_index.db"):
         self._ensure_database_exists(db_path)
         latest_log = self._log.get_latest_log()
         if latest_log:
@@ -27,10 +26,10 @@ class DatabaseProcessor:
         else:
             time, num = None, None
 
-        self._raw_pages.initialize_raw_webpage()
-        if not time or not num or not Method.check_time_difference(time,self._UPDATE_TIME) or not Method.check_num_difference(self._raw_pages.get_len(), num):
+        raw_pages.initialize_raw_webpage()
+        if not time or not num or not Method.check_time_difference(time,self._UPDATE_TIME) or not Method.check_num_difference(raw_pages.get_len(), num):
             print("update")
-            self._update_database()
+            self._update_database(raw_pages)
 
     def get_db(self):
         return self._db
@@ -43,9 +42,9 @@ class DatabaseProcessor:
             self._db.close()
 
     def search_url(self, query: str) -> list:
-        return self._raw_webpage_processor.search_by_url(query)[0]  # [("0/0", url)]
+        return self._raw_webpage_processor.search_by_url(query)  # [("0/0", url)]
 
-    def search_tokens(self, query: list) -> list:
+    def search_tokens(self, query: list) -> list:  # 获取已经排序好的list of (doc_id, url)
         doc_ids = self._inverted_index_processor.search_by_tokens(query)
         return doc_ids  # [(token01, "0/0", tf_idf), (token01, "0/1", tf_idf)]  # 修改为包含token structure的list
 
@@ -58,11 +57,12 @@ class DatabaseProcessor:
         self._token_processor.init_tokens(self._db)
         self._inverted_index_processor.init_inverted_index(self._db)
 
-    def _update_database(self):
-        raw_webpage_num = self._raw_webpage_processor.update_raw_webpage(self._raw_pages.get_pages())
+    def _update_database(self, raw_pages: RawWebpages):
+        raw_webpage_num = self._raw_webpage_processor.update_raw_webpage(raw_pages.get_pages())
         for doc_id in self._raw_webpage_processor.get_all_doc_id():
-            folder_name, file_name = doc_id[0].split("/")
-            content = self._raw_pages.load_raw_webpage_content(folder_name, file_name)
+            print(doc_id)
+            folder_name, file_name = Method.get_folder_num_and_file_num(doc_id)
+            content = raw_pages.load_raw_webpage_content(folder_name, file_name)
             token_weight = Method.calculate_token_weight(content.encode("utf-8"))
             self._token_processor.update_token(token_weight)
             self._inverted_index_processor.update_inverted_index(token_weight, doc_id[0])

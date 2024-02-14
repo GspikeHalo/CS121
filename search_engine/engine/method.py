@@ -6,10 +6,15 @@ from lxml import html
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize, sent_tokenize
+from structure import WebpageGeneralInfo
+
+
 
 nltk.download('punkt')  # for tokenize
 nltk.download('stopwords')  # for stop words
 nltk.download('wordnet')  # for lemmatizer
+
+
 
 
 class Method:
@@ -76,3 +81,23 @@ class Method:
             return {}
 
     # 添加tf-idf的计算
+
+    @staticmethod
+    def get_html_general_info(content) -> WebpageGeneralInfo:
+        tree = html.fromstring(content)
+        title = tree.findtext('.//title')
+        # first_paragraph = tree.xpath('//div[@class="inner"]/p/text()')[0].split('.')[0] # 获取第一句
+        first_paragraph_text = tree.xpath('//div[@class="inner"]/p[1]/text()')
+
+        # 如果第一个段落存在
+        if first_paragraph_text:
+            # 获取第一个句子
+            first_sentence = first_paragraph_text[0].split('.')[0] + '.'
+        else:
+            first_sentence = ""
+        return WebpageGeneralInfo(title, None, first_sentence)
+
+    @staticmethod
+    def get_folder_num_and_file_num(doc_id):
+        folder_name, file_name = doc_id[0].split("/")
+        return folder_name, file_name

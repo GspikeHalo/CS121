@@ -1,5 +1,32 @@
+
+
+class WebpageGeneralInfo:
+    def __init__(self, title=None, url=None, first_sentence=None):
+        self._title = title
+        self._url = url
+        self._first_sentence = first_sentence
+
+    def get_title(self):
+        return self._title
+
+    def get_url(self):
+        return self._url
+
+    def get_first_sentence(self):
+        return self._first_sentence
+
+    def set_title(self, title):
+        self._title = title
+
+    def set_url(self, url):
+        self._url = url
+
+    def set_first_sentence(self, first_sentence):
+        self._first_sentence = first_sentence
+
+
 class DocNode:
-    def __init__(self, doc_ids=None, url=None, tf_idf=None):
+    def __init__(self, doc_ids = None, url = None, tf_idf = None):
         self._doc_ids = doc_ids
         self._url = url
         self._tf_idf = tf_idf
@@ -41,7 +68,7 @@ class DocLinkedList:
 
 
 class TokenStructure:
-    def __init__(self, token, doc: DocLinkedList = None, doc_num=None, total_num=None):
+    def __init__(self, token, doc: DocLinkedList = None, doc_num = None, total_num = None):
         self._token = token
         self._doc = doc
         self._doc_num = doc_num
@@ -67,4 +94,5 @@ class TokenStructure:
 
     def set_doc(self, doc: DocLinkedList):
         self._doc = doc
+
     """后续添加对于doc链表的操作，应该会增加或者减少链表中的内容"""

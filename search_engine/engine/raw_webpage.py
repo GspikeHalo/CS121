@@ -51,3 +51,8 @@ class RawWebpageProcessor:
         else:
             self._cursor.execute("UPDATE webpage SET URL = ? WHERE doc_id = ?", (url, doc_id))
         return True
+
+
+if __name__ == '__main__':
+    rw =  RawWebpageProcessor()
+    rw.init_raw_webpage()

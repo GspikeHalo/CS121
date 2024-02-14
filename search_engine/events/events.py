@@ -1,6 +1,6 @@
 #  search_engine/events/events.py
 
-from ..engine.structure import TokenStructure
+from search_engine.engine.structure import WebpageGeneralInfo
 
 
 class OpenDatabaseEvent:
@@ -28,10 +28,10 @@ class SearchTokenEvent:
 
 
 class TokenSearchEvent:
-    def __init__(self, content: list[TokenStructure]):
+    def __init__(self, content: list):
         self._content = content
 
-    def get_content(self) -> list[TokenStructure]:
+    def get_content(self) -> list:
         return self._content
 
 
@@ -44,8 +44,8 @@ class SearchURLEvent:
 
 
 class URLSearchEvent:
-    def __init__(self, content: list):
+    def __init__(self, content: list[WebpageGeneralInfo]):
         self._content = content
 
-    def get_content(self) -> list:
+    def get_content(self) -> list[WebpageGeneralInfo]:
         return self._content

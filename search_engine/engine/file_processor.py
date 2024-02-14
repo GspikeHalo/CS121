@@ -1,7 +1,5 @@
 import json
 import os
-# for test
-from method import Method
 
 
 class RawWebpages:
@@ -23,12 +21,11 @@ class RawWebpages:
             self._len = len(self._pages)
             print(self._len)
 
-    def load_raw_webpage_content(self, folder_name, file_name):
-        file_path = os.path.join(self._root_path, str(folder_name), str(file_name))
+    def load_raw_webpage_content(self, folder_num, file_num):
+        file_path = os.path.join(self._root_path, str(folder_num), str(file_num))
         with open(file_path, "r", encoding="utf-8") as file:
             content = file.read()
         return content
-
 
 class Log:
     def __init__(self, path):
@@ -58,10 +55,10 @@ class Log:
             return ""
 
 
-if __name__ == '__main__':
-    raw = RawWebpages()
-    content = raw.load_raw_webpage_content(0, 2)
-    print(content)
-    for key, value in Method.calculate_token_weight(content).items():
-        print(key)
-        print(value)
+# if __name__ == '__main__':
+#     raw = RawWebpages()
+#     content = raw.load_raw_webpage_content(0, 2)
+#     print(content)
+#     for key, value in Method.calculate_token_weight(content).items():
+#         print(key)
+#         print(value)
