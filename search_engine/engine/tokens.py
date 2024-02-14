@@ -20,6 +20,12 @@ class TokenProcessor:
             print(e)
             self._db.rollback()
 
+    def close(self):
+        if self._cursor:
+            self._cursor.close()
+        if self._db:
+            self._db.close()
+
     def _update_token_record(self, token, total_num):
         existing_record = self._cursor.execute("SELECT doc_num, total_num FROM tokens WHERE token = ?",
                                                (token,)).fetchone()

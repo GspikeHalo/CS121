@@ -1,5 +1,3 @@
-
-
 class RawWebpageProcessor:
     def __init__(self):
         self._db = None
@@ -28,16 +26,16 @@ class RawWebpageProcessor:
             self._db.rollback()
             return 0
 
-    def _update_webpage_record(self, doc_id, url):
-        existing_record = self._cursor.execute("SELECT * FROM webpage WHERE doc_id = ?", (doc_id,)).fetchone()
-        if existing_record is None:
-            self._cursor.execute("INSERT INTO webpage (doc_id, URL) VALUES (?, ?)", (doc_id, url))
-        else:
-            self._cursor.execute("UPDATE webpage SET URL = ? WHERE doc_id = ?", (url, doc_id))
-        return True
-
     def get_all_doc_id(self):
         self._cursor.execute("SELECT doc_id FROM webpage")
+        return self._cursor.fetchall()
+
+    def search_by_url(self, url):
+        self._cursor.execute("SELECT doc_id, url FROM webpage WHERE url=?", (url,))
+        return self._cursor.fetchall()
+
+    def search_by_doc_id(self, doc_id):
+        self._cursor.execute("SELECT doc_id, url FROM webpage WHERE doc_id=?", (doc_id,))
         return self._cursor.fetchall()
 
     def close(self):
@@ -45,3 +43,11 @@ class RawWebpageProcessor:
             self._cursor.close()
         if self._db:
             self._db.close()
+
+    def _update_webpage_record(self, doc_id, url):
+        existing_record = self._cursor.execute("SELECT * FROM webpage WHERE doc_id = ?", (doc_id,)).fetchone()
+        if existing_record is None:
+            self._cursor.execute("INSERT INTO webpage (doc_id, URL) VALUES (?, ?)", (doc_id, url))
+        else:
+            self._cursor.execute("UPDATE webpage SET URL = ? WHERE doc_id = ?", (url, doc_id))
+        return True

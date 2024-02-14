@@ -1,3 +1,4 @@
+
 class InvertedIndexProcessor:
     def __init__(self):
         self._db = None
@@ -16,3 +17,17 @@ class InvertedIndexProcessor:
         for token, tf_idf in token_weight.items():
             self._cursor.execute(sql, (token, doc_id, tf_idf))
         self._db.commit()
+
+    def search_by_tokens(self, tokens):
+        doc_ids = []
+        for token in tokens:
+            self._cursor.execute("SELECT token, doc_id, tf_idf FROM inverted_index WHERE token=?", (token,))
+            for row in self._cursor.fetchall():
+                doc_ids.append(row)
+        return doc_ids
+
+    def close(self):
+        if self._cursor:
+            self._cursor.close()
+        if self._db:
+            self._db.close()
