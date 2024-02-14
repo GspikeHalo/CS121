@@ -42,12 +42,12 @@ class DatabaseProcessor:
         if self._db:
             self._db.close()
 
-    def search_url(self, query: str):
+    def search_url(self, query: str) -> list:
         return self._raw_webpage_processor.search_by_url(query)[0]  # [("0/0", url)]
 
-    def search_tokens(self, query: list):
+    def search_tokens(self, query: list) -> list:
         doc_ids = self._inverted_index_processor.search_by_tokens(query)
-        return doc_ids  # [(token01, "0/0", tf_idf), (token01, "0/1", tf_idf)]
+        return doc_ids  # [(token01, "0/0", tf_idf), (token01, "0/1", tf_idf)]  # 修改为包含token structure的list
 
     def _ensure_database_exists(self, db_path):
         self._db = sqlite3.connect(db_path)

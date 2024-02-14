@@ -7,5 +7,5 @@ from .databaseprocessor import DatabaseProcessor
 from .file_processor import RawWebpages, Log
 from .inverted_index import InvertedIndexProcessor
 from .raw_webpage import RawWebpageProcessor
-from .structure import TokenStructure, DocStructure
+from .structure import TokenStructure, DocNode
 from .tokens import TokenProcessor
