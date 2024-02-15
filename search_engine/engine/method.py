@@ -19,18 +19,18 @@ nltk.download('wordnet')  # for lemmatizer
 
 class Method:
     @staticmethod
-    def check_time_difference(prev_time_str, update_time):
+    def check_time_difference(prev_time_str: str, update_time: int) -> bool:
         prev_time = datetime.datetime.strptime(prev_time_str, "%Y-%m-%d").date()
         current_date = datetime.datetime.now().date()
         time_difference = abs((current_date - prev_time).days)
         return time_difference <= update_time
 
     @staticmethod
-    def check_num_difference(num01, num02):
+    def check_num_difference(num01: str | int, num02: str | int) -> bool:
         return int(num01) == int(num02)
 
     @staticmethod
-    def preprocess_text(text):
+    def preprocess_text(text: str) -> list[str]:
         """预处理文本：去除停用词，词形还原，分词"""
         stop_words = set(stopwords.words('english'))
         lemmatizer = WordNetLemmatizer()
@@ -40,7 +40,7 @@ class Method:
         return filtered_words
 
     @staticmethod
-    def calculate_token_weight(html_content):
+    def calculate_token_weight(html_content: bytes) -> dict:
         try:
             tree = html.fromstring(html_content)
             token_weights = {}
@@ -83,21 +83,17 @@ class Method:
     # 添加tf-idf的计算
 
     @staticmethod
-    def get_html_general_info(content) -> WebpageGeneralInfo:
+    def get_html_general_info(content: bytes) -> WebpageGeneralInfo:
         tree = html.fromstring(content)
         title = tree.findtext('.//title')
-        # first_paragraph = tree.xpath('//div[@class="inner"]/p/text()')[0].split('.')[0] # 获取第一句
-        first_paragraph_text = tree.xpath('//div[@class="inner"]/p[1]/text()')
-
-        # 如果第一个段落存在
-        if first_paragraph_text:
-            # 获取第一个句子
-            first_sentence = first_paragraph_text[0].split('.')[0] + '.'
-        else:
-            first_sentence = ""
+        text_nodes = tree.xpath('//body//text()')
+        full_text = ' '.join([text.strip() for text in text_nodes if text.strip()])
+        words = full_text.split()
+        first_sentence = words[:20]
+        first_sentence = ' '.join(first_sentence)
         return WebpageGeneralInfo(title, None, first_sentence)
 
     @staticmethod
-    def get_folder_num_and_file_num(doc_id):
-        folder_name, file_name = doc_id[0].split("/")
+    def get_folder_num_and_file_num(doc_id: str) -> tuple:
+        folder_name, file_name = doc_id.split("/")
         return folder_name, file_name

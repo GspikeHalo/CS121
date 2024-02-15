@@ -1,5 +1,3 @@
-
-
 class WebpageGeneralInfo:
     def __init__(self, title=None, url=None, first_sentence=None):
         self._title = title
@@ -26,7 +24,7 @@ class WebpageGeneralInfo:
 
 
 class DocNode:
-    def __init__(self, doc_ids = None, url = None, tf_idf = None):
+    def __init__(self, doc_ids=None, url=None, tf_idf=None):
         self._doc_ids = doc_ids
         self._url = url
         self._tf_idf = tf_idf
@@ -68,7 +66,7 @@ class DocLinkedList:
 
 
 class TokenStructure:
-    def __init__(self, token, doc: DocLinkedList = None, doc_num = None, total_num = None):
+    def __init__(self, token, doc: DocLinkedList = None, doc_num=None, total_num=None):
         self._token = token
         self._doc = doc
         self._doc_num = doc_num

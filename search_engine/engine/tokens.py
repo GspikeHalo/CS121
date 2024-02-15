@@ -3,14 +3,14 @@ class TokenProcessor:
         self._db = None
         self._cursor = None
 
-    def init_tokens(self, db):
+    def init_tokens(self, db) -> None:
         self._db = db
         self._cursor = db.cursor()
         sql = "CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, doc_num REAL, total_num REAL)"
         self._cursor.execute(sql)
         self._db.commit()
 
-    def update_token(self, token_weight):
+    def update_token(self, token_weight: dict) -> None:
         try:
             self._db.execute("BEGIN")
             for token, total_num in token_weight.items():
@@ -20,13 +20,13 @@ class TokenProcessor:
             print(e)
             self._db.rollback()
 
-    def close(self):
+    def close(self) -> None:
         if self._cursor:
             self._cursor.close()
         if self._db:
             self._db.close()
 
-    def _update_token_record(self, token, total_num):
+    def _update_token_record(self, token: int, total_num: int) -> bool:
         existing_record = self._cursor.execute("SELECT doc_num, total_num FROM tokens WHERE token = ?",
                                                (token,)).fetchone()
         if existing_record is None:
@@ -40,5 +40,3 @@ class TokenProcessor:
         return True
 
 
-if __name__ == '__main__':
-    token_processor = TokenProcessor()

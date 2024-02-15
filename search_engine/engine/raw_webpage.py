@@ -3,14 +3,14 @@ class RawWebpageProcessor:
         self._db = None
         self._cursor = None
 
-    def init_raw_webpage(self, db):
+    def init_raw_webpage(self, db) -> None:
         self._db = db
         self._cursor = db.cursor()
         sql = "CREATE TABLE IF NOT EXISTS webpage (doc_id TEXT PRIMARY KEY, URL TEXT)"
         self._cursor.execute(sql)
         self._db.commit()
 
-    def update_raw_webpage(self, content: dict):
+    def update_raw_webpage(self, content: dict) -> int:
         if not isinstance(content, dict):
             raise ValueError("content should be a dict object")
 
@@ -26,25 +26,25 @@ class RawWebpageProcessor:
             self._db.rollback()
             return 0
 
-    def get_all_doc_id(self):
+    def get_all_doc_id(self) -> list[tuple]:
         self._cursor.execute("SELECT doc_id FROM webpage")
         return self._cursor.fetchall()
 
-    def search_by_url(self, url):
+    def search_by_url(self, url: str) -> list[tuple]:
         self._cursor.execute("SELECT doc_id, url FROM webpage WHERE url=?", (url,))
         return self._cursor.fetchall()
 
-    def search_by_doc_id(self, doc_id):
+    def search_by_doc_id(self, doc_id: str) -> list[tuple]:
         self._cursor.execute("SELECT doc_id, url FROM webpage WHERE doc_id=?", (doc_id,))
         return self._cursor.fetchall()
 
-    def close(self):
+    def close(self) -> None:
         if self._cursor:
             self._cursor.close()
         if self._db:
             self._db.close()
 
-    def _update_webpage_record(self, doc_id, url):
+    def _update_webpage_record(self, doc_id: str, url: str) -> bool:
         existing_record = self._cursor.execute("SELECT * FROM webpage WHERE doc_id = ?", (doc_id,)).fetchone()
         if existing_record is None:
             self._cursor.execute("INSERT INTO webpage (doc_id, URL) VALUES (?, ?)", (doc_id, url))
@@ -53,6 +53,3 @@ class RawWebpageProcessor:
         return True
 
 
-if __name__ == '__main__':
-    rw =  RawWebpageProcessor()
-    rw.init_raw_webpage()
