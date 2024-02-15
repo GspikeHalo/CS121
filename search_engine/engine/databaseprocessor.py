@@ -70,22 +70,28 @@ class DatabaseProcessor:
             folder_name, file_name = Method.get_folder_num_and_file_num(doc_id[0])
             content = raw_pages.load_raw_webpage_content(folder_name, file_name)
             token_weight = Method.calculate_token_weight(content.encode("utf-8"))
+            title, first_sentence = Method.get_html_general_info(content.encode("utf-8"))
+            self._raw_webpage_processor.update_webpage_info(doc_id[0], title, first_sentence)
             self._token_processor.update_token(token_weight)
             self._inverted_index_processor.update_inverted_index(token_weight, doc_id[0])
+
         log = f"{datetime.datetime.now().date()} {raw_webpage_num}"
         self._log.update_log(log)
 
-# if __name__ == '__main__':
-#     db_processor = DatabaseProcessor()
-#     db_processor.open_db()
-#     db = db_processor.get_db()
-#     cursor = db.cursor()
-#     sql = "SELECT * FROM webpage"
-#     try:
-#         cursor.execute(sql)
-#         result = cursor.fetchall()
-#         # for row in result:
-#         #     print("doc_id:", row[0])
-#         #     print("  URL:", row[1])
-#     except Exception as e:
-#         print("Error:", e)
+if __name__ == '__main__':
+    db_processor = DatabaseProcessor()
+    raw_pages = RawWebpages()
+    db_processor.open_db(raw_pages)
+    db = db_processor.get_db()
+    cursor = db.cursor()
+    sql = "SELECT * FROM webpage"
+    try:
+        cursor.execute(sql)
+        result = cursor.fetchall()
+        for row in result:
+            print("doc_id:", row[0])
+            print("  URL:", row[1])
+            print("  Title:", row[2])
+            print("  Destriction:", row[3])
+    except Exception as e:
+        print("Error:", e)

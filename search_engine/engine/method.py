@@ -83,15 +83,20 @@ class Method:
     # 添加tf-idf的计算
 
     @staticmethod
-    def get_html_general_info(content: bytes) -> WebpageGeneralInfo:
-        tree = html.fromstring(content)
-        title = tree.findtext('.//title')
-        text_nodes = tree.xpath('//body//text()')
-        full_text = ' '.join([text.strip() for text in text_nodes if text.strip()])
-        words = full_text.split()
-        first_sentence = words[:20]
-        first_sentence = ' '.join(first_sentence)
-        return WebpageGeneralInfo(title, None, first_sentence)
+    def get_html_general_info(content: bytes) -> tuple:
+        try:
+            tree = html.fromstring(content)
+            title = tree.findtext('.//title')
+            text_nodes = tree.xpath('//body//text()')
+            full_text = ' '.join([text.strip() for text in text_nodes if text.strip()])
+            words = full_text.split()
+            first_sentence = words[:20]
+            first_sentence = ' '.join(first_sentence)
+            return title, first_sentence
+            # return WebpageGeneralInfo(title, None, first_sentence)
+        except Exception as e:
+            print(e)
+            return None, None
 
     @staticmethod
     def get_folder_num_and_file_num(doc_id: str) -> tuple:

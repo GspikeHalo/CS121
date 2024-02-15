@@ -30,15 +30,9 @@ class Engine:
                 pages_s.extend(pages)
         result = self._get_webpage_info(pages_s)
         return TokenSearchEvent(result)
-        # inquiry = event.get_content()
-        # pages = self._db.search_tokens(inquiry)  # 需要对该方法进行修改 返回已经排好序的list of (doc_id, url)
-        # result = self._get_webpage_info(pages)
-        # return TokenSearchEvent([])
-        pass
 
     def search_url_event(self, event: SearchURLEvent) -> URLSearchEvent:
         inquiry = event.get_content()
-        # print(inquiry)
         pages = self._db.search_url(inquiry)  # list of (doc_id, url)
         result = self._get_webpage_info(pages)
         return URLSearchEvent(result)  # 后续添加分页机制，我认为可以通过dict，dict的key为页数，value为list of result
@@ -52,6 +46,7 @@ class Engine:
         return DatabaseCloseEvent()
 
     def _get_webpage_info(self, pages: list[tuple]) -> list[WebpageGeneralInfo]:
+        pass  # 修改！！！！
         result = []
         for doc_id, url in pages:
             print(doc_id)
@@ -79,4 +74,5 @@ if __name__ == '__main__':
                 print("NONONONO")
                 continue
             for info in webpage_infos.get_content():
-                print(f"web title: {info.get_title()}, web url: {info.get_url()}, web_first_sentence: {info.get_first_sentence()}")
+                print(
+                    f"web title: {info.get_title()}, web url: {info.get_url()}, web_first_sentence: {info.get_first_sentence()}")
