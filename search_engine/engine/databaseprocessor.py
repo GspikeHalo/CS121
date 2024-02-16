@@ -5,7 +5,7 @@ import datetime
 from method import Method
 from raw_webpage import RawWebpageProcessor
 from tokens import TokenProcessor
-from inverted_index import InvertedIndexProcessor
+from inverted_index import InvertedIndexProcessor, TFIDFInfo
 from file_processor import RawWebpages, Log
 
 
@@ -33,6 +33,40 @@ class DatabaseProcessor:
             print("update")
             self._update_database(raw_pages)
 
+        # 此处开始为测试程序，不需要可以注释掉，巨慢
+        tf_idf_list = []
+        n = self._raw_webpage_processor.get_total_length()
+        for doc_id in self._raw_webpage_processor.get_all_doc_id():
+            doc_id = doc_id[0]
+            print(doc_id)
+            d = self._raw_webpage_processor.get_total_words(doc_id)
+            dict_tf_idf = {key: value for key, value in self._inverted_index_processor.get_tf_idf(doc_id)}
+            for token in self._inverted_index_processor.get_token_by_doc_id(doc_id):
+                token = token[0]
+                print(token)
+                f_td = dict_tf_idf[token]
+                n_t = self._token_processor.get_doc_num(token)
+                tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
+                tf_idf_list.append(TFIDFInfo(token, doc_id, tf_idf))
+                if len(tf_idf_list) >= 2000:
+                    print("writing...")
+                    self._inverted_index_processor.update_tf_idf(tf_idf_list)
+                    tf_idf_list = []
+            if tf_idf_list:
+                self._inverted_index_processor.update_tf_idf(tf_idf_list)
+        # for token, doc_id in self._inverted_index_processor.get_doc_id_and_token():
+        #     print(doc_id)
+        #     f_td = self._inverted_index_processor.get_tf_idf(token, doc_id)
+        #     d = self._raw_webpage_processor.get_total_words(doc_id)
+        #     n_t = self._token_processor.get_doc_num(token)
+        #     tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
+        #     tf_idf_list.append(TFIDFInfo(token, doc_id, tf_idf))
+        #     if len(tf_idf_list) >= 2000:
+        #         self._inverted_index_processor.update_tf_idf(tf_idf_list)
+        #         tf_idf_list = []
+        # if tf_idf_list:
+        #     self._inverted_index_processor.update_tf_idf(tf_idf_list)
+
     def get_db(self):
         return self._db
 
@@ -44,7 +78,7 @@ class DatabaseProcessor:
             self._db.close()
 
     def search_url(self, query: str) -> list[tuple]:
-        return self._raw_webpage_processor.search_by_url(query)  # [("0/0", url)]
+        return self._raw_webpage_processor.search_by_url(query)  # [("0/0", url, title, description)]
 
     def search_tokens(self, token: str) -> list[tuple]:  # 获取已经排序好的list of (doc_id, url)
         doc_ids = self._inverted_index_processor.search_by_tokens(token)
@@ -52,7 +86,7 @@ class DatabaseProcessor:
         return doc_ids  # [(token01, "0/0", tf_idf), (token01, "0/1", tf_idf)]
 
     def search_doc_id(self, doc_id: str) -> list[tuple]:
-         return self._raw_webpage_processor.search_by_doc_id(doc_id)
+        return self._raw_webpage_processor.search_by_doc_id(doc_id)
 
     def _ensure_database_exists(self, db_path: str) -> None:
         self._db = sqlite3.connect(db_path)
@@ -69,14 +103,27 @@ class DatabaseProcessor:
             print(doc_id)
             folder_name, file_name = Method.get_folder_num_and_file_num(doc_id[0])
             content = raw_pages.load_raw_webpage_content(folder_name, file_name)
-            token_weight = Method.calculate_token_weight(content.encode("utf-8"))
-            title, first_sentence = Method.get_html_general_info(content.encode("utf-8"))
-            self._raw_webpage_processor.update_webpage_info(doc_id[0], title, first_sentence)
+            byte_content = content.encode("utf-8")
+            token_weight = Method.calculate_token_weight(byte_content)
+            title, first_sentence, word_num = Method.get_html_general_info(byte_content)
+            self._raw_webpage_processor.update_webpage_info(doc_id[0], title, first_sentence, word_num, byte_content)
             self._token_processor.update_token(token_weight)
             self._inverted_index_processor.update_inverted_index(token_weight, doc_id[0])
 
+        # n = self._raw_webpage_processor.get_total_length()
+        # for token in self._token_processor.get_all_tokens():
+        #     for doc_id in self._raw_webpage_processor.get_all_doc_id():
+        #         token = token[0]
+        #         doc_id = doc_id[0]
+        #         f_td = self._inverted_index_processor.get_tf_idf(token, doc_id)
+        #         d = self._raw_webpage_processor.get_total_words(doc_id)
+        #         n_t = self._token_processor.get_doc_num(token)
+        #         tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
+        #         self._inverted_index_processor.update_tf_idf(token, doc_id, tf_idf)
         log = f"{datetime.datetime.now().date()} {raw_webpage_num}"
         self._log.update_log(log)
+
+
 
 if __name__ == '__main__':
     db_processor = DatabaseProcessor()
@@ -90,8 +137,8 @@ if __name__ == '__main__':
         result = cursor.fetchall()
         for row in result:
             print("doc_id:", row[0])
-            print("  URL:", row[1])
-            print("  Title:", row[2])
-            print("  Destriction:", row[3])
+            print("URL:", row[1])
+            print("Title:", row[2])
+            print("Description:", row[3])
     except Exception as e:
         print("Error:", e)

@@ -2,7 +2,6 @@
 
 from search_engine.events import *
 from search_engine.engine.databaseprocessor import DatabaseProcessor
-from method import Method
 from file_processor import RawWebpages
 
 
@@ -26,15 +25,15 @@ class Engine:
         pages_s = []
         for token in tokens:
             for token_info in self._db.search_tokens(token):
-                pages = self._db.search_doc_id(token_info[1])
+                pages = self._db.search_doc_id(token_info[1])  # 1是doc_id
                 pages_s.extend(pages)
-        result = self._get_webpage_info(pages_s)
+        result = [WebpageGeneralInfo(url=page[1], title=page[2], first_sentence=page[3]) for page in pages_s]
         return TokenSearchEvent(result)
 
     def search_url_event(self, event: SearchURLEvent) -> URLSearchEvent:
         inquiry = event.get_content()
-        pages = self._db.search_url(inquiry)  # list of (doc_id, url)
-        result = self._get_webpage_info(pages)
+        pages = self._db.search_url(inquiry)  # InfoBridge
+        result = [WebpageGeneralInfo(url=page[1], title=page[2], first_sentence=page[3]) for page in pages]
         return URLSearchEvent(result)  # 后续添加分页机制，我认为可以通过dict，dict的key为页数，value为list of result
 
     def open_database_event(self) -> DatabaseOpenEvent:
@@ -44,18 +43,6 @@ class Engine:
     def close_database_event(self) -> DatabaseCloseEvent:
         self._db.close_db()
         return DatabaseCloseEvent()
-
-    def _get_webpage_info(self, pages: list[tuple]) -> list[WebpageGeneralInfo]:
-        pass  # 修改！！！！
-        result = []
-        for doc_id, url in pages:
-            print(doc_id)
-            folder_num, file_num = Method.get_folder_num_and_file_num(doc_id)
-            single_page = Method.get_html_general_info(
-                self._raw_pages.load_raw_webpage_content(folder_num, file_num).encode("utf-8"))
-            single_page.set_url(url)
-            result.append(single_page)
-        return result
 
 
 if __name__ == '__main__':

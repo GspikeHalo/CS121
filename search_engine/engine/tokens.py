@@ -6,7 +6,7 @@ class TokenProcessor:
     def init_tokens(self, db) -> None:
         self._db = db
         self._cursor = db.cursor()
-        sql = "CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, doc_num REAL, total_num REAL)"
+        sql = "CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, doc_num INT, total_num INT)"
         self._cursor.execute(sql)
         self._db.commit()
 
@@ -19,6 +19,12 @@ class TokenProcessor:
         except Exception as e:
             print(e)
             self._db.rollback()
+
+    def get_all_tokens(self) -> list[tuple]:
+        return self._cursor.execute("SELECT token FROM tokens").fetchall()
+
+    def get_doc_num(self, token) -> int:
+        return self._cursor.execute("SELECT doc_num FROM tokens WHERE token=?", (token,)).fetchone()[0]
 
     def close(self) -> None:
         if self._cursor:
@@ -38,5 +44,3 @@ class TokenProcessor:
             self._cursor.execute("UPDATE tokens SET doc_num = ?, total_num = ? WHERE token = ?",
                                  (doc_num + 1, updated_total_num, token))
         return True
-
-

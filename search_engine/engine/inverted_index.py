@@ -1,3 +1,8 @@
+from collections import namedtuple
+
+TFIDFInfo = namedtuple("TFIDFInfo", ("token", "doc_id", "tf_idf"))
+
+
 class InvertedIndexProcessor:
     def __init__(self):
         self._db = None
@@ -17,8 +22,35 @@ class InvertedIndexProcessor:
             self._cursor.execute(sql, (token, doc_id, tf_idf))
         self._db.commit()
 
+    def update_tf_idf(self, info_list: list[TFIDFInfo]) -> None:
+        # 准备SQL语句
+        sql = "UPDATE inverted_index SET tf_idf=? WHERE token=? AND doc_id=?"
+        # 构建参数列表
+        params = [(info.tf_idf, info.token, info.doc_id) for info in info_list]
+        # 开始事务
+        self._cursor.execute('BEGIN')
+        try:
+            # 使用executemany批量执行更新
+            self._cursor.executemany(sql, params)
+            # 提交事务
+            self._db.commit()
+        except Exception as e:
+            # 如果出现错误，则回滚事务
+            self._db.rollback()
+            raise e
+
+    def get_doc_id_and_token(self) -> list[tuple]:
+        return self._cursor.execute("SELECT token, doc_id FROM inverted_index").fetchall()
+
+    def get_token_by_doc_id(self, doc_id) -> list[tuple]:
+        return self._cursor.execute("SELECT token FROM inverted_index WHERE doc_id=?", (doc_id,)).fetchall()
+
     def search_by_tokens(self, token: str) -> list[tuple]:
         self._cursor.execute("SELECT token, doc_id, tf_idf FROM inverted_index WHERE token=?", (token,))
+        return self._cursor.fetchall()
+
+    def get_tf_idf(self, doc_id: str) -> list[tuple]:
+        self._cursor.execute("SELECT token, tf_idf FROM inverted_index WHERE doc_ID=?", (doc_id,))
         return self._cursor.fetchall()
 
     def close(self):

@@ -1,13 +1,12 @@
 #  .search_engine/engine/method.py
 
 import datetime
+import math
 import nltk
 from lxml import html
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize, sent_tokenize
-from structure import WebpageGeneralInfo
-
 
 
 nltk.download('punkt')  # for tokenize
@@ -92,13 +91,23 @@ class Method:
             words = full_text.split()
             first_sentence = words[:20]
             first_sentence = ' '.join(first_sentence)
-            return title, first_sentence
-            # return WebpageGeneralInfo(title, None, first_sentence)
+
+            text = " ".join(tree.xpath('//text()'))
+            total_content = Method.preprocess_text(text)
+            return title, first_sentence, len(total_content)
         except Exception as e:
             print(e)
-            return None, None
+            return None, None, None
 
     @staticmethod
     def get_folder_num_and_file_num(doc_id: str) -> tuple:
         folder_name, file_name = doc_id.split("/")
         return folder_name, file_name
+
+    @staticmethod
+    def calculate_tf_idf(f_td, total_words_in_d, n, n_t):
+        tf = f_td / total_words_in_d
+        idf = math.log((n + 1) / (n_t + 1)) + 1
+
+        tf_idf = tf * idf
+        return round(tf_idf, 8)

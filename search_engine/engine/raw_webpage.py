@@ -6,7 +6,7 @@ class RawWebpageProcessor:
     def init_raw_webpage(self, db) -> None:
         self._db = db
         self._cursor = db.cursor()
-        sql = "CREATE TABLE IF NOT EXISTS webpage (doc_id TEXT PRIMARY KEY, URL TEXT, title TEXT, description TEXT)"
+        sql = "CREATE TABLE IF NOT EXISTS webpage (doc_id TEXT PRIMARY KEY, URL TEXT, title TEXT, description TEXT, total_words INT, corpus BLOB)"  # 后续更改corpus
         self._cursor.execute(sql)
         self._db.commit()
 
@@ -26,10 +26,10 @@ class RawWebpageProcessor:
             self._db.rollback()
             return 0
 
-    def update_webpage_info(self, doc_id: str, title: str, description: str) -> bool:
+    def update_webpage_info(self, doc_id: str, title: str, description: str, total_words: int, corpus: bytes) -> bool:
         try:
-            self._db.execute("UPDATE webpage SET title = ?, description = ? WHERE doc_id = ?",
-                             (title, description, doc_id))
+            self._db.execute("UPDATE webpage SET title = ?, description = ?, total_words = ?, corpus = ? WHERE doc_id = ?",  # 后续更改corpus
+                             (title, description, total_words, corpus, doc_id))
             self._db.commit()
             return True
         except Exception as e:
@@ -41,12 +41,18 @@ class RawWebpageProcessor:
         self._cursor.execute("SELECT doc_id FROM webpage")
         return self._cursor.fetchall()
 
+    def get_total_length(self) -> int:
+        return self._cursor.execute("SELECT COUNT(*) FROM webpage").fetchone()[0]
+
+    def get_total_words(self, doc_id) -> int:
+        return self._cursor.execute("SELECT total_words FROM webpage WHERE doc_id=?", (doc_id,)).fetchone()[0]
+
     def search_by_url(self, url: str) -> list[tuple]:
-        self._cursor.execute("SELECT doc_id, url FROM webpage WHERE url=?", (url,))
+        self._cursor.execute("SELECT doc_id, url, title, description FROM webpage WHERE url=?", (url,))
         return self._cursor.fetchall()
 
     def search_by_doc_id(self, doc_id: str) -> list[tuple]:
-        self._cursor.execute("SELECT doc_id, url FROM webpage WHERE doc_id=?", (doc_id,))
+        self._cursor.execute("SELECT doc_id, url, title, description FROM webpage WHERE doc_id=?", (doc_id,))
         return self._cursor.fetchall()
 
     def close(self) -> None:
@@ -58,11 +64,13 @@ class RawWebpageProcessor:
     def _update_webpage_record(self, doc_id: str, url: str) -> bool:
         existing_record = self._cursor.execute("SELECT * FROM webpage WHERE doc_id = ?", (doc_id,)).fetchone()
         if existing_record is None:
-            self._cursor.execute("INSERT INTO webpage (doc_id, URL, title, description) VALUES (?, ?, NULL, NULL)",
-                                 (doc_id, url))
+            self._cursor.execute(
+                "INSERT INTO webpage (doc_id, URL, title, description, total_words, corpus) VALUES (?, ?, NULL, NULL, NULL, NULL)",
+                # 后续更改corpus
+                (doc_id, url))
         else:
-            self._cursor.execute("UPDATE webpage SET URL = ?, title = NULL, description = NULL WHERE doc_id = ?",
-                                 (url, doc_id))
+            self._cursor.execute(
+                "UPDATE webpage SET URL = ?, title = NULL, description = NULL, total_words = NULL, corpus = NULL WHERE doc_id = ?",
+                # 后续更改corpus
+                (url, doc_id))
         return True
-
-
