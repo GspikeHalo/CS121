@@ -32,7 +32,7 @@ class DatabaseProcessor:
             raw_pages.get_len(), num):
             print("update")
             self._update_database(raw_pages)
-        self._update_tf_idf()
+        # self._update_tf_idf()
 
     def get_db(self):
         return self._db
@@ -117,5 +117,6 @@ if __name__ == '__main__':
             print("URL:", row[1])
             print("Title:", row[2])
             print("Description:", row[3])
+        db_processor.close_db()
     except Exception as e:
         print("Error:", e)

@@ -17,8 +17,7 @@ class TokenProcessor:
                 self._update_token_record(token, total_num)
             self._db.commit()
         except Exception as e:
-            print(e)
-            self._db.rollback()
+            print("Error!!!!!", e)
 
     def get_all_tokens(self) -> list[tuple]:
         return self._cursor.execute("SELECT token FROM tokens").fetchall()

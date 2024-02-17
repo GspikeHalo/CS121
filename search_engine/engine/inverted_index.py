@@ -35,9 +35,7 @@ class InvertedIndexProcessor:
             # 提交事务
             self._db.commit()
         except Exception as e:
-            # 如果出现错误，则回滚事务
-            self._db.rollback()
-            raise e
+            print("Error at i index", e)
 
     # def get_doc_id_and_token(self) -> list[tuple]:
     #     return self._cursor.execute("SELECT token, doc_id FROM inverted_index").fetchall()

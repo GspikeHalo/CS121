@@ -34,8 +34,6 @@ class RawWebpageProcessor:
             return True
         except Exception as e:
             print(f"Error updating webpage info: {e}")
-            self._db.rollback()
-            return False
 
     def get_all_doc_id(self) -> list[tuple]:
         self._cursor.execute("SELECT doc_id FROM webpage")

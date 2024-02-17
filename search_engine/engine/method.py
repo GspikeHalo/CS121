@@ -42,44 +42,55 @@ class Method:
     def calculate_token_weight(html_content: bytes) -> dict:
         try:
             tree = html.fromstring(html_content)
-            token_weights = {}
-
-            # 添加或更新 token 权重
-            def add_weight(token, weight):
-                if token in token_weights:
-                    token_weights[token] += weight
-                else:
-                    token_weights[token] = weight
-
-            # 处理标题
-            title = tree.find('.//title')
-            if title is not None and title.text:
-                for token in Method.preprocess_text(title.text):
-                    add_weight(token, 10)
-            # 处理 H 标签 和 每段首句
-            for h_tag in tree.xpath('//h1|//h2|//h3|//h4|//h5|//h6|//p'):
-                text_content = h_tag.text_content()
-                sentences = sent_tokenize(text_content)
-                first_sentence = True
-                for sentence in sentences:
-                    tokens = Method.preprocess_text(sentence)
-                    if not tokens:
-                        continue
-                    if first_sentence or h_tag.tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-                        weight = 5 if h_tag.tag == 'p' and first_sentence else 5
-                        for token in tokens:
-                            add_weight(token, weight)
-                    first_sentence = False
-            # 处理加粗或斜体文本
-            for tag in tree.xpath('//b|//strong|//i|//em'):
-                for token in Method.preprocess_text(tag.text_content()):
-                    add_weight(token, 1)
-            return token_weights
+            text_content = tree.text_content()
+            tokens = word_tokenize(text_content)
+            stop_words = set(stopwords.words('english'))
+            filtered_tokens = [token for token in tokens if token.lower() not in stop_words and token.isalpha()]
+            lemmatizer = WordNetLemmatizer()
+            lemmatized_tokens = [lemmatizer.lemmatize(token.lower()) for token in filtered_tokens]
+            token_counts = nltk.FreqDist(lemmatized_tokens)
+            return dict(token_counts)
         except Exception as e:
             print(e)
             return {}
-
-    # 添加tf-idf的计算
+        # try:
+        #     tree = html.fromstring(html_content)
+        #     token_weights = {}
+        #
+        #     # 添加或更新 token 权重
+        #     def add_weight(token, weight):
+        #         if token in token_weights:
+        #             token_weights[token] += weight
+        #         else:
+        #             token_weights[token] = weight
+        #
+        #     # 处理标题
+        #     title = tree.find('.//title')
+        #     if title is not None and title.text:
+        #         for token in Method.preprocess_text(title.text):
+        #             add_weight(token, 10)
+        #     # 处理 H 标签 和 每段首句
+        #     for h_tag in tree.xpath('//h1|//h2|//h3|//h4|//h5|//h6|//p'):
+        #         text_content = h_tag.text_content()
+        #         sentences = sent_tokenize(text_content)
+        #         first_sentence = True
+        #         for sentence in sentences:
+        #             tokens = Method.preprocess_text(sentence)
+        #             if not tokens:
+        #                 continue
+        #             if first_sentence or h_tag.tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+        #                 weight = 5 if h_tag.tag == 'p' and first_sentence else 5
+        #                 for token in tokens:
+        #                     add_weight(token, weight)
+        #             first_sentence = False
+        #     # 处理加粗或斜体文本
+        #     for tag in tree.xpath('//b|//strong|//i|//em'):
+        #         for token in Method.preprocess_text(tag.text_content()):
+        #             add_weight(token, 1)
+        #     return token_weights
+        # except Exception as e:
+        #     print(e)
+        #     return {}
 
     @staticmethod
     def get_html_general_info(content: bytes) -> tuple:
