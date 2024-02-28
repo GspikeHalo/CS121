@@ -5,8 +5,10 @@ import datetime
 from method import Method
 from raw_webpage import RawWebpageProcessor
 from tokens import TokenProcessor
-from inverted_index import InvertedIndexProcessor, TFIDFInfo
+from inverted_index import InvertedIndexProcessor
+from weight_matrix import WeightMatrix
 from file_processor import RawWebpages, Log
+from structure import TFIDFInfo
 
 
 class DatabaseProcessor:
@@ -16,6 +18,7 @@ class DatabaseProcessor:
         self._raw_webpage_processor = RawWebpageProcessor()
         self._token_processor = TokenProcessor()
         self._inverted_index_processor = InvertedIndexProcessor()
+        self._weight_matrix_processor = WeightMatrix()
         self._UPDATE_TIME = update_time
 
     def open_db(self, raw_pages: RawWebpages, db_path: str = "../../database/tf_idf_index.db") -> None:
@@ -32,6 +35,7 @@ class DatabaseProcessor:
             raw_pages.get_len(), num):
             print("update")
             self._update_database(raw_pages)
+        self._remove_duplicate()
         # self._update_tf_idf()
 
     def get_db(self):
@@ -47,10 +51,10 @@ class DatabaseProcessor:
     def search_url(self, query: str) -> list[tuple]:
         return self._raw_webpage_processor.search_by_url(query)  # [("0/0", url, title, description)]
 
-    def search_tokens(self, token: str) -> list[tuple]:  # 获取已经排序好的list of (doc_id, url)
-        doc_ids = self._inverted_index_processor.search_by_tokens(token)
-        doc_ids = sorted(doc_ids, key=lambda x: x[2])  # 根据tf_idf进行排序
-        return doc_ids  # [(token01, "0/0", tf_idf), (token01, "0/1", tf_idf)]
+    # def search_tokens(self, token: str) -> list[tuple]:  # 获取已经排序好的list of (doc_id, url)  # 进行修改
+    #     doc_ids = self._inverted_index_processor.search_by_tokens(token)
+    #     doc_ids = sorted(doc_ids, key=lambda x: x[2])  # 根据tf_idf进行排序
+    #     return doc_ids  # [(token01, "0/0", tf_idf), (token01, "0/1", tf_idf)]
 
     def search_doc_id(self, doc_id: str) -> list[tuple]:
         return self._raw_webpage_processor.search_by_doc_id(doc_id)
@@ -78,6 +82,17 @@ class DatabaseProcessor:
             self._inverted_index_processor.update_inverted_index(token_weight, doc_id[0])
         log = f"{datetime.datetime.now().date()} {raw_webpage_num}"
         self._log.update_log(log)
+
+    def _remove_duplicate(self):
+        duplicate_ids = self._raw_webpage_processor.remove_duplicate()
+        self._inverted_index_processor.remove_duplicate(duplicate_ids)
+        for doc_id in duplicate_ids:
+            print(doc_id)
+            folder_name, file_name = Method.get_folder_num_and_file_num(doc_id)
+            content = raw_pages.load_raw_webpage_content(folder_name, file_name)
+            byte_content = content.encode("utf-8")
+            token_weight = Method.calculate_token_weight(byte_content)
+            self._token_processor.remove_duplicate(token_weight)
 
     def _update_tf_idf(self):
         tf_idf_list = []
@@ -112,11 +127,8 @@ if __name__ == '__main__':
     try:
         cursor.execute(sql)
         result = cursor.fetchall()
-        for row in result:
-            print("doc_id:", row[0])
-            print("URL:", row[1])
-            print("Title:", row[2])
-            print("Description:", row[3])
+        print(result)
+
         db_processor.close_db()
     except Exception as e:
         print("Error:", e)

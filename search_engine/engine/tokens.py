@@ -19,6 +19,25 @@ class TokenProcessor:
         except Exception as e:
             print("Error!!!!!", e)
 
+    def remove_duplicate(self, token_weights: dict) -> None:
+        try:
+            self._db.execute("BEGIN")
+            for token, weight in token_weights.items():
+                existing_record = self._cursor.execute(
+                    "SELECT doc_num, total_num FROM tokens WHERE token = ?",
+                    (token,)).fetchone()
+                if existing_record:
+                    doc_num, total_num = existing_record
+                    updated_doc_num = max(0, doc_num - 1)
+                    updated_total_num = max(0, total_num - weight)
+                    self._cursor.execute(
+                        "UPDATE tokens SET doc_num = ?, total_num = ? WHERE token = ?",
+                        (updated_doc_num, updated_total_num, token))
+            self._db.commit()
+        except Exception as e:
+            print(f"Error removing token entries: {e}")
+            self._db.rollback()
+
     def get_all_tokens(self) -> list[tuple]:
         return self._cursor.execute("SELECT token FROM tokens").fetchall()
 

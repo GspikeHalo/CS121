@@ -45,9 +45,9 @@ class Method:
             text_content = tree.text_content()
             tokens = word_tokenize(text_content)
             stop_words = set(stopwords.words('english'))
-            filtered_tokens = [token for token in tokens if token.lower() not in stop_words and token.isalpha()]
+            filtered_tokens = [token.lower() for token in tokens if token.lower() not in stop_words and token.isalpha()]
             lemmatizer = WordNetLemmatizer()
-            lemmatized_tokens = [lemmatizer.lemmatize(token.lower()) for token in filtered_tokens]
+            lemmatized_tokens = [lemmatizer.lemmatize(token) for token in filtered_tokens]
             token_counts = nltk.FreqDist(lemmatized_tokens)
             return dict(token_counts)
         except Exception as e:

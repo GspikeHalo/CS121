@@ -1,3 +1,7 @@
+from collections import namedtuple
+
+TFIDFInfo = namedtuple("TFIDFInfo", ("token", "doc_id", "tf_idf"))
+
 class WebpageGeneralInfo:
     def __init__(self, title=None, url=None, first_sentence=None):
         self._title = title

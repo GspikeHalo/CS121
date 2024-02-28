@@ -28,12 +28,52 @@ class RawWebpageProcessor:
 
     def update_webpage_info(self, doc_id: str, title: str, description: str, total_words: int, corpus: bytes) -> bool:
         try:
-            self._db.execute("UPDATE webpage SET title = ?, description = ?, total_words = ?, corpus = ? WHERE doc_id = ?",  # 后续更改corpus
-                             (title, description, total_words, corpus, doc_id))
+            # duplicate_check_query = "SELECT doc_id FROM webpage WHERE corpus = ? AND doc_id != ?"
+            # duplicates = self._cursor.execute(duplicate_check_query, (corpus, doc_id)).fetchall()
+            # if duplicates:
+            #     delete_query = "DELETE FROM webpage WHERE doc_id = ?", (doc_id, )
+            #     self._cursor.execute(delete_query)
+            #     return False
+
+            self._db.execute(
+                "UPDATE webpage SET title = ?, description = ?, total_words = ?, corpus = ? WHERE doc_id = ?",
+                (title, description, total_words, corpus, doc_id))
             self._db.commit()
             return True
         except Exception as e:
             print(f"Error updating webpage info: {e}")
+            self._db.rollback()
+            return False
+
+    def remove_duplicate(self) -> list:
+        duplicates_query = """
+        SELECT doc_id
+        FROM (
+            SELECT doc_id,
+                   ROW_NUMBER() OVER(PARTITION BY corpus ORDER BY doc_id) AS rn
+            FROM webpage
+        ) tmp
+        WHERE rn > 1
+        """
+
+        try:
+            self._db.execute("BEGIN")
+            duplicates = self._cursor.execute(duplicates_query).fetchall()
+            if not duplicates:
+                self._db.commit()
+                return []
+
+            deleted_doc_ids = [dup[0] for dup in duplicates]
+            print(deleted_doc_ids)
+            delete_query = "DELETE FROM webpage WHERE doc_id = ?"
+            for dup in deleted_doc_ids:
+                self._cursor.execute(delete_query, (dup,))
+            self._db.commit()
+            return deleted_doc_ids
+        except Exception as e:
+            print(f"Error deduplicating by corpus: {e}")
+            self._db.rollback()
+            return []
 
     def get_all_doc_id(self) -> list[tuple]:
         self._cursor.execute("SELECT doc_id FROM webpage")
@@ -64,11 +104,9 @@ class RawWebpageProcessor:
         if existing_record is None:
             self._cursor.execute(
                 "INSERT INTO webpage (doc_id, URL, title, description, total_words, corpus) VALUES (?, ?, NULL, NULL, NULL, NULL)",
-                # 后续更改corpus
                 (doc_id, url))
         else:
             self._cursor.execute(
                 "UPDATE webpage SET URL = ?, title = NULL, description = NULL, total_words = NULL, corpus = NULL WHERE doc_id = ?",
-                # 后续更改corpus
                 (url, doc_id))
         return True
