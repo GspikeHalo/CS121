@@ -35,7 +35,7 @@ class DatabaseProcessor:
             raw_pages.get_len(), num):
             print("update")
             self._update_database(raw_pages)
-        self._remove_duplicate()
+            self._remove_duplicate()
         # self._update_tf_idf()
 
     def get_db(self):
@@ -94,26 +94,26 @@ class DatabaseProcessor:
             token_weight = Method.calculate_token_weight(byte_content)
             self._token_processor.remove_duplicate(token_weight)
 
-    def _update_tf_idf(self):
-        tf_idf_list = []
-        n = self._raw_webpage_processor.get_total_length()
-        for doc_id in self._raw_webpage_processor.get_all_doc_id():
-            doc_id = doc_id[0]
-            print(doc_id)
-            d = self._raw_webpage_processor.get_total_words(doc_id)
-            dict_tf_idf = {key: value for key, value in self._inverted_index_processor.get_word_num(doc_id)}
-            for token in self._inverted_index_processor.get_token_by_doc_id(doc_id):
-                token = token[0]
-                f_td = dict_tf_idf[token]
-                n_t = self._token_processor.get_doc_num(token)
-                tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
-                tf_idf_list.append(TFIDFInfo(token, doc_id, tf_idf))
-            if len(tf_idf_list) >= 2000:
-                print("writing...")
-                self._inverted_index_processor.update_tf_idf(tf_idf_list)
-                tf_idf_list = []
-        if tf_idf_list:
-            self._inverted_index_processor.update_tf_idf(tf_idf_list)
+    # def _update_tf_idf(self):   # 修改
+    #     tf_idf_list = []
+    #     n = self._raw_webpage_processor.get_total_length()
+    #     for doc_id in self._raw_webpage_processor.get_all_doc_id():
+    #         doc_id = doc_id[0]
+    #         print(doc_id)
+    #         d = self._raw_webpage_processor.get_total_words(doc_id)
+    #         dict_tf_idf = {key: value for key, value in self._inverted_index_processor.get_word_num(doc_id)}
+    #         for token in self._inverted_index_processor.get_token_by_doc_id(doc_id):
+    #             token = token[0]
+    #             f_td = dict_tf_idf[token]
+    #             n_t = self._token_processor.get_doc_num(token)
+    #             tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
+    #             tf_idf_list.append(TFIDFInfo(token, doc_id, tf_idf))
+    #         if len(tf_idf_list) >= 2000:
+    #             print("writing...")
+    #             self._inverted_index_processor.update_tf_idf(tf_idf_list)
+    #             tf_idf_list = []
+    #     if tf_idf_list:
+    #         self._inverted_index_processor.update_tf_idf(tf_idf_list)
 
 
 

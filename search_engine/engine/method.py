@@ -7,13 +7,12 @@ from lxml import html
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize, sent_tokenize
+from collections import defaultdict
 
 
 nltk.download('punkt')  # for tokenize
 nltk.download('stopwords')  # for stop words
 nltk.download('wordnet')  # for lemmatizer
-
-
 
 
 class Method:
@@ -42,17 +41,57 @@ class Method:
     def calculate_token_weight(html_content: bytes) -> dict:
         try:
             tree = html.fromstring(html_content)
-            text_content = tree.text_content()
-            tokens = word_tokenize(text_content)
+            token_weights = defaultdict(int)
+
+            tag_weights = {
+                'title': 5,
+                'h1': 4, 'h2': 3, 'h3': 2, 'h4': 1, 'h5': 1, 'h6': 1,
+                'b': 3, 'strong': 3
+            }
+
+            for tag, weight in tag_weights.items():
+                for element in tree.findall('.//{}'.format(tag)):
+                    tokens = word_tokenize(element.text_content())
+                    for token in tokens:
+                        token_weights[token.lower()] += weight
+
+            # 处理段落的第一句
+            for element in tree.findall('.//p'):
+                sentences = sent_tokenize(element.text_content())
+                if sentences:
+                    first_sentence_tokens = word_tokenize(sentences[0])
+                    for token in first_sentence_tokens:
+                        token_weights[token.lower()] += 2
+
+            # 过滤停用词并进行词形还原
             stop_words = set(stopwords.words('english'))
-            filtered_tokens = [token.lower() for token in tokens if token.lower() not in stop_words and token.isalpha()]
             lemmatizer = WordNetLemmatizer()
-            lemmatized_tokens = [lemmatizer.lemmatize(token) for token in filtered_tokens]
-            token_counts = nltk.FreqDist(lemmatized_tokens)
-            return dict(token_counts)
+            filtered_token_weights = {}
+            for token, weight in token_weights.items():
+                if token not in stop_words and token.isalpha():
+                    lemmatized_token = lemmatizer.lemmatize(token)
+                    filtered_token_weights[lemmatized_token] = filtered_token_weights.get(lemmatized_token, 0) + weight
+
+            return filtered_token_weights
         except Exception as e:
             print(e)
             return {}
+
+    # @staticmethod
+    # def calculate_token_weight(html_content: bytes) -> dict:
+    #     try:
+    #         tree = html.fromstring(html_content)
+    #         text_content = tree.text_content()
+    #         tokens = word_tokenize(text_content)
+    #         stop_words = set(stopwords.words('english'))
+    #         filtered_tokens = [token.lower() for token in tokens if token.lower() not in stop_words and token.isalpha()]
+    #         lemmatizer = WordNetLemmatizer()
+    #         lemmatized_tokens = [lemmatizer.lemmatize(token) for token in filtered_tokens]
+    #         token_counts = nltk.FreqDist(lemmatized_tokens)
+    #         return dict(token_counts)
+    #     except Exception as e:
+    #         print(e)
+    #         return {}
         # try:
         #     tree = html.fromstring(html_content)
         #     token_weights = {}
