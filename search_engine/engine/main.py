@@ -1,7 +1,7 @@
 #  .search_engine/engine/main.py
 
 from search_engine.events import *
-from search_engine.engine.databaseprocessor import DatabaseProcessor
+from search_engine.engine.database_processor import DatabaseProcessor
 from file_processor import RawWebpages
 
 

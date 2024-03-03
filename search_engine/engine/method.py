@@ -3,6 +3,7 @@
 import datetime
 import math
 import nltk
+import json
 from lxml import html
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -41,19 +42,32 @@ class Method:
     def calculate_token_weight(html_content: bytes) -> dict:
         try:
             tree = html.fromstring(html_content)
-            token_weights = defaultdict(int)
+            token_weights = defaultdict(lambda: {'weight': 0, 'positions': []})
+            position_counter = 0
+
+            text_content = tree.text_content()
+            tokens = word_tokenize(text_content)
+            for token in tokens:
+                normalized_token = token.lower()
+                token_weights[normalized_token]['weight'] += 1
+                token_weights[normalized_token]['positions'].append(position_counter)
+                position_counter += 1
 
             tag_weights = {
-                'title': 5,
-                'h1': 4, 'h2': 3, 'h3': 2, 'h4': 1, 'h5': 1, 'h6': 1,
-                'b': 3, 'strong': 3
+                'title': 2.5,
+                'h1': 2, 'h2': 1.5, 'h3': 1, 'h4': 0.5, 'h5': 0.5, 'h6': 0.5,
+                'b': 1.5, 'strong': 1.5
             }
 
             for tag, weight in tag_weights.items():
                 for element in tree.findall('.//{}'.format(tag)):
                     tokens = word_tokenize(element.text_content())
                     for token in tokens:
-                        token_weights[token.lower()] += weight
+                        # token_weights[token.lower()] += weight
+                        normalized_token = token.lower()
+                        token_weights[normalized_token]['weight'] += weight
+                        token_weights[normalized_token]['positions'].append(position_counter)
+                        position_counter += 1
 
             # 处理段落的第一句
             for element in tree.findall('.//p'):
@@ -61,75 +75,25 @@ class Method:
                 if sentences:
                     first_sentence_tokens = word_tokenize(sentences[0])
                     for token in first_sentence_tokens:
-                        token_weights[token.lower()] += 2
+                        token_weights[token.lower()]['weight'] += 1
 
-            # 过滤停用词并进行词形还原
             stop_words = set(stopwords.words('english'))
             lemmatizer = WordNetLemmatizer()
-            filtered_token_weights = {}
-            for token, weight in token_weights.items():
+            filtered_token_positions = {}
+            for token, info in token_weights.items():
                 if token not in stop_words and token.isalpha():
                     lemmatized_token = lemmatizer.lemmatize(token)
-                    filtered_token_weights[lemmatized_token] = filtered_token_weights.get(lemmatized_token, 0) + weight
+                    if lemmatized_token not in filtered_token_positions:
+                        filtered_token_positions[lemmatized_token] = {'weight': info['weight'],
+                                                                      'positions': info['positions']}
+                    else:
+                        filtered_token_positions[lemmatized_token]['weight'] += info['weight']
+                        filtered_token_positions[lemmatized_token]['positions'].extend(info['positions'])
 
-            return filtered_token_weights
+            return filtered_token_positions
         except Exception as e:
             print(e)
             return {}
-
-    # @staticmethod
-    # def calculate_token_weight(html_content: bytes) -> dict:
-    #     try:
-    #         tree = html.fromstring(html_content)
-    #         text_content = tree.text_content()
-    #         tokens = word_tokenize(text_content)
-    #         stop_words = set(stopwords.words('english'))
-    #         filtered_tokens = [token.lower() for token in tokens if token.lower() not in stop_words and token.isalpha()]
-    #         lemmatizer = WordNetLemmatizer()
-    #         lemmatized_tokens = [lemmatizer.lemmatize(token) for token in filtered_tokens]
-    #         token_counts = nltk.FreqDist(lemmatized_tokens)
-    #         return dict(token_counts)
-    #     except Exception as e:
-    #         print(e)
-    #         return {}
-        # try:
-        #     tree = html.fromstring(html_content)
-        #     token_weights = {}
-        #
-        #     # 添加或更新 token 权重
-        #     def add_weight(token, weight):
-        #         if token in token_weights:
-        #             token_weights[token] += weight
-        #         else:
-        #             token_weights[token] = weight
-        #
-        #     # 处理标题
-        #     title = tree.find('.//title')
-        #     if title is not None and title.text:
-        #         for token in Method.preprocess_text(title.text):
-        #             add_weight(token, 10)
-        #     # 处理 H 标签 和 每段首句
-        #     for h_tag in tree.xpath('//h1|//h2|//h3|//h4|//h5|//h6|//p'):
-        #         text_content = h_tag.text_content()
-        #         sentences = sent_tokenize(text_content)
-        #         first_sentence = True
-        #         for sentence in sentences:
-        #             tokens = Method.preprocess_text(sentence)
-        #             if not tokens:
-        #                 continue
-        #             if first_sentence or h_tag.tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-        #                 weight = 5 if h_tag.tag == 'p' and first_sentence else 5
-        #                 for token in tokens:
-        #                     add_weight(token, weight)
-        #             first_sentence = False
-        #     # 处理加粗或斜体文本
-        #     for tag in tree.xpath('//b|//strong|//i|//em'):
-        #         for token in Method.preprocess_text(tag.text_content()):
-        #             add_weight(token, 1)
-        #     return token_weights
-        # except Exception as e:
-        #     print(e)
-        #     return {}
 
     @staticmethod
     def get_html_general_info(content: bytes) -> tuple:
@@ -161,3 +125,11 @@ class Method:
 
         tf_idf = tf * idf
         return round(tf_idf, 8)
+
+    @staticmethod
+    def serialize_list_to_json(data_list: list):
+        return json.dumps(data_list)
+
+    @staticmethod
+    def deserialize_json_to_list(json_str: str):
+        return json.loads(json_str)

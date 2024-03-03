@@ -64,7 +64,6 @@ class RawWebpageProcessor:
                 return []
 
             deleted_doc_ids = [dup[0] for dup in duplicates]
-            print(deleted_doc_ids)
             delete_query = "DELETE FROM webpage WHERE doc_id = ?"
             for dup in deleted_doc_ids:
                 self._cursor.execute(delete_query, (dup,))

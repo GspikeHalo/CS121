@@ -19,7 +19,6 @@ class RawWebpages:
         with open(file_path, 'r', encoding='utf-8') as file:
             self._pages = json.load(file)
             self._len = len(self._pages)
-            print(self._len)
 
     def load_raw_webpage_content(self, folder_num: int | str, file_num: int | str) -> str:
         file_path = os.path.join(self._root_path, str(folder_num), str(file_num))
@@ -54,4 +53,3 @@ class Log:
             with open(self._log_path, "w") as log:
                 pass
             return ""
-

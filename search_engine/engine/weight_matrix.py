@@ -1,46 +1,71 @@
 import sqlite3
 from structure import TFIDFInfo
+from table_range import TableRange
 
 
 class WeightMatrix:
     def __init__(self):
         self._db = None
         self._cursor = None
+        self._table_range_processor = TableRange()
 
-    def init_weight_matrix(self, db, doc_ids) -> None:
+    def init_db(self, db):
         self._db = db
         self._cursor = db.cursor()
-        columns = ', '.join([f'"{doc_id[0]}" REAL' for doc_id in doc_ids])
-        sql = f"CREATE TABLE IF NOT EXISTS weight_matrix (token TEXT PRIMARY KEY, {columns})"
-        self._db.execute(sql)
-        self._db.commit()
 
-    def add_tokens(self, tokens: list[tuple]):
-        # 构建SQL语句以插入新的token，所有文档列的值初始化为0
-        columns = ', '.join([f'"{doc_id}"' for doc_id in self.doc_ids])
-        placeholders = ', '.join(['?'] * (len(self.doc_ids) + 1))  # +1 for token column
-        zero_values = [0] * len(self.doc_ids)  # 初始化所有文档列的值为0
-        sql = f"INSERT INTO weight_matrix (token, {columns}) VALUES ({placeholders}) ON CONFLICT(token) DO NOTHING"
-        for token in tokens:
-            values = [token[0]] + zero_values
-            self._cursor.execute(sql, values)
-        self._db.commit()
+    def init_weight_matrix(self, doc_ids: list[tuple]) -> None:
+        batch_size = 1500
+        table_index = 0
+        temp_list = []
 
-    def update_tf_idf(self, info_list: list[TFIDFInfo]) -> None:
-        self._cursor.execute('BEGIN')
-        try:
-            for info in info_list:
-                # 检查是否存在记录
-                check_sql = f"SELECT EXISTS(SELECT 1 FROM weight_matrix WHERE token=? LIMIT 1)"
-                self._cursor.execute(check_sql, (info.token,))
-                exists = self._cursor.fetchone()[0]
-                if exists:
-                    # 更新现有记录
-                    update_sql = f"UPDATE weight_matrix SET {info.doc_id}=? WHERE token=?"
-                    self._cursor.execute(update_sql, (info.tf_idf, info.token))
+        doc_ids = sorted(doc_ids, key=lambda x: tuple(map(int, x[0].split('/'))))
+
+        for i in range(0, len(doc_ids), batch_size):
+            batch_doc_ids = doc_ids[i:i + batch_size]
+            print(f"process {batch_doc_ids}")
+            table_name = f"weight_matrix_{table_index}"
+            self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (token TEXT PRIMARY KEY, query REAL)")
             self._db.commit()
-        except Exception as e:
-            # 如果出现异常，回滚事务
-            self._db.rollback()
-            print("Error during database operation:", e)
 
+            self._cursor.execute(f"PRAGMA table_info({table_name});")
+            existing_columns = {info[1] for info in self._cursor.fetchall()}
+
+            for doc_id in batch_doc_ids:
+                # column_name = doc_id[0].replace('/', '_')  # 用下划线替换斜杠以避免SQL语法问题
+                column_name = doc_id[0]
+                if column_name not in existing_columns:
+                    sql = f"ALTER TABLE {table_name} ADD COLUMN '{column_name}' REAL"
+                    self._cursor.execute(sql)
+                    self._db.commit()
+            temp_list.append((table_name, batch_doc_ids[0][0], batch_doc_ids[-1][0]))
+            table_index += 1
+        self._table_range_processor.update_table_ranges(temp_list)
+
+    def update_tokens(self, tokens: list[tuple]) -> None: # 修改
+        for table_name, start_doc_id, end_doc_id in self._table_range_processor.get_table_ranges():
+            print(f"updating table {table_name}")
+            self._cursor.execute(f"PRAGMA table_info({table_name})")
+            columns_info = self._cursor.fetchall()
+            columns = [f'"{info[1]}"' for info in columns_info if info[1] != 'token']
+            placeholders = ', '.join(['?'] * len(columns_info))
+            zero_values = [0] * (len(columns_info) - 1)
+            sql = f"INSERT INTO {table_name} (token, {', '.join(columns)}) VALUES ({placeholders})"
+            for token in tokens:
+                values = [token[0]] + zero_values
+                self._cursor.execute(sql, values)
+        self._db.commit()
+
+    def update_tf_idf(self, doc_id: str, tf_idf_list: list[tuple]) -> None:
+        table_name = self._table_range_processor.get_table_name_for_doc_id(doc_id)
+
+        # column_name = doc_id.replace('/', '_')
+        column_name = doc_id
+
+        self._cursor.execute('BEGIN IMMEDIATE')
+        for token, tf_idf_value in tf_idf_list:
+            self._cursor.execute(f"SELECT EXISTS(SELECT 1 FROM {table_name} WHERE token=? LIMIT 1)", (token,))
+            exists = self._cursor.fetchone()[0]
+            if exists:
+                update_sql = f"UPDATE {table_name} SET '{column_name}' = ? WHERE token = ?"
+                self._cursor.execute(update_sql, (tf_idf_value, token))
+        self._db.commit()
