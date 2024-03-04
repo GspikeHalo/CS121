@@ -9,9 +9,11 @@ from tokens_weight import TokensWeight
 from file_processor import RawWebpages, Log
 from weight_matrix import WeightMatrix
 from inverted_index import InvertedIndexDB
+from connection_pool import SQLiteConnectionPool
 
 from concurrent.futures import ThreadPoolExecutor
 
+THREAD_NUM = 24
 
 class DatabaseProcessor:
     def __init__(self, update_time: int = 100):
@@ -21,6 +23,7 @@ class DatabaseProcessor:
         self._token_processor = TokenProcessor()
         self._tokens_weight_processor = TokensWeight()
         self._weight_matrix = WeightMatrix()
+        self._pool = SQLiteConnectionPool("../../database/tf_idf_index.db", pool_size=THREAD_NUM)
         self._inverted_index_db = InvertedIndexDB("CS121", "inverted_index")
         self._UPDATE_TIME = update_time
 
@@ -102,13 +105,12 @@ class DatabaseProcessor:
             self._token_processor.remove_duplicate(token_info)
 
     def calculate_and_update_tf_idf(self, doc_id):
-        db_connection = sqlite3.connect("../../database/tf_idf_index.db")
+        db_connection = self._pool.get_connection()
         try:
             local_raw_webpage_processor = RawWebpageProcessor()
             local_tokens_weight_processor = TokensWeight()
             local_token_processor = TokenProcessor()
             local_weight_matrix = WeightMatrix()
-
             local_raw_webpage_processor.init_raw_webpage(db_connection)
             local_tokens_weight_processor.init_tokens_weight(db_connection)
             local_token_processor.init_tokens(db_connection)
@@ -128,20 +130,21 @@ class DatabaseProcessor:
                 tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
                 tf_idf_list.append((token, tf_idf))
                 position = dict_position[token]
-                # 假设Method.deserialize_json_to_list是正确的反序列化方法
                 position = Method.deserialize_json_to_list(position)
                 self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
             local_weight_matrix.update_tf_idf(doc_id, tf_idf_list)
         except Exception as e:
             print(e)
         finally:
-            db_connection.close()
+            self._pool.release_connection(db_connection)
 
     def _update_tf_idf(self):
         doc_ids = [doc_id[0] for doc_id in self._raw_webpage_processor.get_all_doc_id()]
-
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            executor.map(self.calculate_and_update_tf_idf, doc_ids)
+        try:
+            with ThreadPoolExecutor(max_workers=THREAD_NUM) as executor:
+                executor.map(self.calculate_and_update_tf_idf, doc_ids)
+        finally:
+            self._pool.close_all_connections()
 
 
 if __name__ == '__main__':
@@ -154,7 +157,7 @@ if __name__ == '__main__':
     try:
         cursor.execute(sql)
         result = cursor.fetchall()
-        print('')
+        print('1')
 
         db_processor.close_db()
     except Exception as e:
