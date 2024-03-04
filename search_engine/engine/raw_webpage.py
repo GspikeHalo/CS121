@@ -1,13 +1,11 @@
 class RawWebpageProcessor:
     def __init__(self):
         self._db = None
-        self._cursor = None
 
     def init_raw_webpage(self, db) -> None:
         self._db = db
-        self._cursor = db.cursor()
         sql = "CREATE TABLE IF NOT EXISTS webpage (doc_id TEXT PRIMARY KEY, URL TEXT, title TEXT, description TEXT, total_words INT, corpus BLOB)"  # 后续更改corpus
-        self._cursor.execute(sql)
+        self._db.execute(sql)
         self._db.commit()
 
     def update_raw_webpage(self, content: dict) -> int:
@@ -27,15 +25,9 @@ class RawWebpageProcessor:
             return 0
 
     def update_webpage_info(self, doc_id: str, title: str, description: str, total_words: int, corpus: bytes) -> bool:
+        cursor = self._db.cursor()
         try:
-            # duplicate_check_query = "SELECT doc_id FROM webpage WHERE corpus = ? AND doc_id != ?"
-            # duplicates = self._cursor.execute(duplicate_check_query, (corpus, doc_id)).fetchall()
-            # if duplicates:
-            #     delete_query = "DELETE FROM webpage WHERE doc_id = ?", (doc_id, )
-            #     self._cursor.execute(delete_query)
-            #     return False
-
-            self._db.execute(
+            cursor.execute(
                 "UPDATE webpage SET title = ?, description = ?, total_words = ?, corpus = ? WHERE doc_id = ?",
                 (title, description, total_words, corpus, doc_id))
             self._db.commit()
@@ -44,6 +36,8 @@ class RawWebpageProcessor:
             print(f"Error updating webpage info: {e}")
             self._db.rollback()
             return False
+        finally:
+            cursor.close()
 
     def remove_duplicate(self) -> list:
         duplicates_query = """
@@ -56,9 +50,10 @@ class RawWebpageProcessor:
         WHERE rn > 1
         """
 
+        cursor = self._db.cursor()
         try:
             self._db.execute("BEGIN")
-            duplicates = self._cursor.execute(duplicates_query).fetchall()
+            duplicates = cursor.execute(duplicates_query).fetchall()
             if not duplicates:
                 self._db.commit()
                 return []
@@ -66,46 +61,59 @@ class RawWebpageProcessor:
             deleted_doc_ids = [dup[0] for dup in duplicates]
             delete_query = "DELETE FROM webpage WHERE doc_id = ?"
             for dup in deleted_doc_ids:
-                self._cursor.execute(delete_query, (dup,))
+                cursor.execute(delete_query, (dup,))
             self._db.commit()
             return deleted_doc_ids
         except Exception as e:
             print(f"Error deduplicating by corpus: {e}")
             self._db.rollback()
             return []
+        finally:
+            cursor.close()
 
     def get_all_doc_id(self) -> list[tuple]:
-        self._cursor.execute("SELECT doc_id FROM webpage")
-        return self._cursor.fetchall()
+        cursor = self._db.cursor()
+        result = cursor.execute("SELECT doc_id FROM webpage").fetchall()
+        cursor.close()
+        return result
 
     def get_total_length(self) -> int:
-        return self._cursor.execute("SELECT COUNT(*) FROM webpage").fetchone()[0]
+        cursor = self._db.cursor()
+        result = cursor.execute("SELECT COUNT(*) FROM webpage").fetchone()[0]
+        return result
 
     def get_total_words(self, doc_id) -> int:
-        return self._cursor.execute("SELECT total_words FROM webpage WHERE doc_id=?", (doc_id,)).fetchone()[0]
+        cursor = self._db.cursor()
+        result = cursor.execute("SELECT total_words FROM webpage WHERE doc_id=?", (doc_id,)).fetchone()[0]
+        cursor.close()
+        return result
 
     def search_by_url(self, url: str) -> list[tuple]:
-        self._cursor.execute("SELECT doc_id, url, title, description FROM webpage WHERE url=?", (url,))
-        return self._cursor.fetchall()
+        cursor = self._db.cursor()
+        result = cursor.execute("SELECT doc_id, url, title, description FROM webpage WHERE url=?", (url,)).fetchall()
+        cursor.close()
+        return result
 
     def search_by_doc_id(self, doc_id: str) -> list[tuple]:
-        self._cursor.execute("SELECT doc_id, url, title, description FROM webpage WHERE doc_id=?", (doc_id,))
-        return self._cursor.fetchall()
+        cursor = self._db.cursor()
+        result = self._db.execute("SELECT doc_id, url, title, description FROM webpage WHERE doc_id=?", (doc_id,)).fetchall()
+        cursor.close()
+        return result
 
     def close(self) -> None:
-        if self._cursor:
-            self._cursor.close()
         if self._db:
             self._db.close()
 
     def _update_webpage_record(self, doc_id: str, url: str) -> bool:
-        existing_record = self._cursor.execute("SELECT * FROM webpage WHERE doc_id = ?", (doc_id,)).fetchone()
+        cursor = self._db.cursor()
+        existing_record = cursor.execute("SELECT * FROM webpage WHERE doc_id = ?", (doc_id,)).fetchone()
         if existing_record is None:
-            self._cursor.execute(
+            cursor.execute(
                 "INSERT INTO webpage (doc_id, URL, title, description, total_words, corpus) VALUES (?, ?, NULL, NULL, NULL, NULL)",
                 (doc_id, url))
         else:
-            self._cursor.execute(
+            cursor.execute(
                 "UPDATE webpage SET URL = ?, title = NULL, description = NULL, total_words = NULL, corpus = NULL WHERE doc_id = ?",
                 (url, doc_id))
+        cursor.close()
         return True

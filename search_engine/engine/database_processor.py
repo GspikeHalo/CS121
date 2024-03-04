@@ -64,7 +64,7 @@ class DatabaseProcessor:
         return self._raw_webpage_processor.search_by_doc_id(doc_id)
 
     def _ensure_database_exists(self, db_path: str) -> None:
-        self._db = sqlite3.connect(db_path, timeout=30)
+        self._db = sqlite3.connect(db_path, timeout=30, check_same_thread=False)
         self._initialize_db()
 
     def _initialize_db(self) -> None:
@@ -101,51 +101,54 @@ class DatabaseProcessor:
             token_info = Method.calculate_token_weight(byte_content)
             self._token_processor.remove_duplicate(token_info)
 
-    def _update_tf_idf(self):
-        n = self._raw_webpage_processor.get_total_length()
-        for doc_id in self._raw_webpage_processor.get_all_doc_id():
-            doc_id = doc_id[0]
+    # def _update_tf_idf(self):
+    #     n = self._raw_webpage_processor.get_total_length()
+    #     for doc_id in self._raw_webpage_processor.get_all_doc_id():
+    #         doc_id = doc_id[0]
+    #         tf_idf_list = []
+    #         print(doc_id)
+    #         d = self._raw_webpage_processor.get_total_words(doc_id)
+    #         dict_tf_idf = {key: value for key, value in self._tokens_weight_processor.get_word_num(doc_id)}
+    #         dict_position = {key: position for key, position in self._tokens_weight_processor.get_word_position(doc_id)}
+    #         for token in self._tokens_weight_processor.get_token_by_doc_id(doc_id):
+    #             token = token[0]
+    #             f_td = dict_tf_idf[token]
+    #             n_t = self._token_processor.get_doc_num(token)
+    #             tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
+    #             tf_idf_list.append((token, tf_idf))
+    #             position = dict_position[token]
+    #             position = Method.deserialize_json_to_list(position)
+    #             self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
+    #         self._weight_matrix.update_tf_idf(doc_id, tf_idf_list)
+
+    def calculate_and_update_tf_idf(self, doc_id):
+        try:
             tf_idf_list = []
             print(doc_id)
             d = self._raw_webpage_processor.get_total_words(doc_id)
             dict_tf_idf = {key: value for key, value in self._tokens_weight_processor.get_word_num(doc_id)}
             dict_position = {key: position for key, position in self._tokens_weight_processor.get_word_position(doc_id)}
+
             for token in self._tokens_weight_processor.get_token_by_doc_id(doc_id):
                 token = token[0]
                 f_td = dict_tf_idf[token]
                 n_t = self._token_processor.get_doc_num(token)
+                n = self._raw_webpage_processor.get_total_length()
                 tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
                 tf_idf_list.append((token, tf_idf))
                 position = dict_position[token]
+                # 假设Method.deserialize_json_to_list是正确的反序列化方法
                 position = Method.deserialize_json_to_list(position)
                 self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
             self._weight_matrix.update_tf_idf(doc_id, tf_idf_list)
+        except Exception as e:
+            print(e)
 
-    # def calculate_and_update_tf_idf(self, doc_id):
-    #     tf_idf_list = []
-    #     print(doc_id)
-    #     d = self._raw_webpage_processor.get_total_words(doc_id)
-    #     dict_tf_idf = {key: value for key, value in self._tokens_weight_processor.get_word_num(doc_id)}
-    #     dict_position = {key: position for key, position in self._tokens_weight_processor.get_word_position(doc_id)}
-    #     for token in self._tokens_weight_processor.get_token_by_doc_id(doc_id):
-    #         print("in update token tf idf")
-    #         token = token[0]
-    #         f_td = dict_tf_idf[token]
-    #         n_t = self._token_processor.get_doc_num(token)
-    #         n = self._raw_webpage_processor.get_total_length()
-    #         tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
-    #         tf_idf_list.append((token, tf_idf))
-    #         position = dict_position[token]
-    #         # 假设Method.deserialize_json_to_list是正确的反序列化方法
-    #         position = Method.deserialize_json_to_list(position)
-    #         self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
-    #     self._weight_matrix.update_tf_idf(doc_id, tf_idf_list)
-    #
-    # def _update_tf_idf(self):
-    #     doc_ids = [doc_id[0] for doc_id in self._raw_webpage_processor.get_all_doc_id()]
-    #
-    #     with ThreadPoolExecutor(max_workers=5) as executor:
-    #         executor.map(self.calculate_and_update_tf_idf, doc_ids)
+    def _update_tf_idf(self):
+        doc_ids = [doc_id[0] for doc_id in self._raw_webpage_processor.get_all_doc_id()]
+
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            executor.map(self.calculate_and_update_tf_idf, doc_ids)
 
 
 if __name__ == '__main__':
