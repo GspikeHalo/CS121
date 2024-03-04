@@ -42,8 +42,12 @@ class TokenProcessor:
             cursor.close()
 
     def get_all_tokens(self) -> list[tuple]:
+        """
+        返回固定顺序的全部tokens
+        :return:
+        """
         cursor = self._db.cursor()
-        result = cursor.execute("SELECT token FROM tokens").fetchall()
+        result = cursor.execute("SELECT token FROM tokens ORDER BY token ASC").fetchall()
         cursor.close()
         return result
 

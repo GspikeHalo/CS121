@@ -2,6 +2,8 @@
 
 import sqlite3
 import datetime
+import functools
+import copy
 from method import Method
 from raw_webpage import RawWebpageProcessor
 from tokens import TokenProcessor
@@ -10,10 +12,12 @@ from file_processor import RawWebpages, Log
 from weight_matrix import WeightMatrix
 from inverted_index import InvertedIndexDB
 from connection_pool import SQLiteConnectionPool
+from collections import OrderedDict
+
 
 from concurrent.futures import ThreadPoolExecutor
 
-THREAD_NUM = 24
+THREAD_NUM = 12
 
 class DatabaseProcessor:
     def __init__(self, update_time: int = 100):
@@ -22,7 +26,7 @@ class DatabaseProcessor:
         self._raw_webpage_processor = RawWebpageProcessor()
         self._token_processor = TokenProcessor()
         self._tokens_weight_processor = TokensWeight()
-        self._weight_matrix = WeightMatrix()
+        # self._weight_matrix = WeightMatrix()
         self._pool = SQLiteConnectionPool("../../database/tf_idf_index.db", pool_size=THREAD_NUM)
         self._inverted_index_db = InvertedIndexDB("CS121", "inverted_index")
         self._UPDATE_TIME = update_time
@@ -42,7 +46,7 @@ class DatabaseProcessor:
             print("update")
             self._update_database(raw_pages)
             self._remove_duplicate()
-            self._weight_matrix.update_tokens(self._token_processor.get_all_tokens())
+            # self._weight_matrix.update_tokens(self._token_processor.get_all_tokens())
         self._update_tf_idf()
 
     def get_db(self):
@@ -74,12 +78,12 @@ class DatabaseProcessor:
         self._raw_webpage_processor.init_raw_webpage(self._db)
         self._token_processor.init_tokens(self._db)
         self._tokens_weight_processor.init_tokens_weight(self._db)
-        self._weight_matrix.init_db(self._db)
+        # self._weight_matrix.init_db(self._db)
 
     def _update_database(self, raw_pages: RawWebpages) -> None:
         raw_webpage_num = self._raw_webpage_processor.update_raw_webpage(raw_pages.get_pages())
         doc_ids = self._raw_webpage_processor.get_all_doc_id()
-        self._weight_matrix.init_weight_matrix(doc_ids)
+        # self._weight_matrix.init_weight_matrix(doc_ids)
         for doc_id in doc_ids:
             print(doc_id[0])
             folder_name, file_name = Method.get_folder_num_and_file_num(doc_id[0])
@@ -104,17 +108,39 @@ class DatabaseProcessor:
             token_info = Method.calculate_token_weight(byte_content)
             self._token_processor.remove_duplicate(token_info)
 
-    def calculate_and_update_tf_idf(self, doc_id):
+    # def _update_tf_idf(self):
+    #     n = self._raw_webpage_processor.get_total_length()
+    #     doc_vector_dict = OrderedDict((token[0], 0) for token in self._token_processor.get_all_tokens())
+    #     for doc_id in self._raw_webpage_processor.get_all_doc_id():
+    #         doc_id = doc_id[0]
+    #         print(doc_id)
+    #         d = self._raw_webpage_processor.get_total_words(doc_id)
+    #         dict_tf_idf = {key: value for key, value in self._tokens_weight_processor.get_word_num(doc_id)}
+    #         dict_position = {key: position for key, position in self._tokens_weight_processor.get_word_position(doc_id)}
+    #         for token in self._tokens_weight_processor.get_token_by_doc_id(doc_id):
+    #             token = token[0]
+    #             f_td = dict_tf_idf[token]
+    #             n_t = self._token_processor.get_doc_num(token)
+    #             tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
+    #             doc_vector_dict[token] += tf_idf
+    #             position = dict_position[token]
+    #             position = Method.deserialize_json_to_list(position)
+    #             self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
+    #         doc_vector = doc_vector_dict.values()
+    #         doc_vector = list(doc_vector)
+    #         self._raw_webpage_processor.update_tf_idf(doc_id, Method.serialize_list_to_json(doc_vector))
+    #         doc_vector_dict = {key: 0 for key in doc_vector_dict}
+
+    def calculate_and_update_tf_idf(self, doc_id, original_dict_keys):
         db_connection = self._pool.get_connection()
+        doc_vector_dict = {key: 0 for key in original_dict_keys}
         try:
             local_raw_webpage_processor = RawWebpageProcessor()
             local_tokens_weight_processor = TokensWeight()
             local_token_processor = TokenProcessor()
-            local_weight_matrix = WeightMatrix()
             local_raw_webpage_processor.init_raw_webpage(db_connection)
             local_tokens_weight_processor.init_tokens_weight(db_connection)
             local_token_processor.init_tokens(db_connection)
-            local_weight_matrix.init_db(db_connection)
 
             tf_idf_list = []
             print(doc_id)
@@ -132,7 +158,9 @@ class DatabaseProcessor:
                 position = dict_position[token]
                 position = Method.deserialize_json_to_list(position)
                 self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
-            local_weight_matrix.update_tf_idf(doc_id, tf_idf_list)
+            doc_vector = doc_vector_dict.values()
+            doc_vector = list(doc_vector)
+            local_raw_webpage_processor.update_tf_idf(doc_id, Method.serialize_list_to_json(doc_vector))
         except Exception as e:
             print(e)
         finally:
@@ -140,9 +168,11 @@ class DatabaseProcessor:
 
     def _update_tf_idf(self):
         doc_ids = [doc_id[0] for doc_id in self._raw_webpage_processor.get_all_doc_id()]
+        original_keys = [token[0] for token in self._token_processor.get_all_tokens()]
         try:
             with ThreadPoolExecutor(max_workers=THREAD_NUM) as executor:
-                executor.map(self.calculate_and_update_tf_idf, doc_ids)
+                func = functools.partial(self.calculate_and_update_tf_idf, original_dict_keys=original_keys)
+                executor.map(func, doc_ids)
         finally:
             self._pool.close_all_connections()
 

@@ -4,7 +4,7 @@ class RawWebpageProcessor:
 
     def init_raw_webpage(self, db) -> None:
         self._db = db
-        sql = "CREATE TABLE IF NOT EXISTS webpage (doc_id TEXT PRIMARY KEY, URL TEXT, title TEXT, description TEXT, total_words INT, corpus BLOB)"  # 后续更改corpus
+        sql = "CREATE TABLE IF NOT EXISTS webpage (doc_id TEXT PRIMARY KEY, URL TEXT, title TEXT, description TEXT, total_words INT, corpus BLOB, vector TEXT)"  # 后续更改corpus
         self._db.execute(sql)
         self._db.commit()
 
@@ -71,6 +71,13 @@ class RawWebpageProcessor:
         finally:
             cursor.close()
 
+    def update_tf_idf(self, doc_id: str, vector: str) -> None:
+        cursor = self._db.cursor()
+        sql = "UPDATE webpage SET vector = ? WHERE doc_id = ?"
+        cursor.execute(sql, (vector, doc_id))
+        cursor.close()
+        self._db.commit()
+
     def get_all_doc_id(self) -> list[tuple]:
         cursor = self._db.cursor()
         result = cursor.execute("SELECT doc_id FROM webpage").fetchall()
@@ -109,11 +116,11 @@ class RawWebpageProcessor:
         existing_record = cursor.execute("SELECT * FROM webpage WHERE doc_id = ?", (doc_id,)).fetchone()
         if existing_record is None:
             cursor.execute(
-                "INSERT INTO webpage (doc_id, URL, title, description, total_words, corpus) VALUES (?, ?, NULL, NULL, NULL, NULL)",
+                "INSERT INTO webpage (doc_id, URL, title, description, total_words, corpus, vector) VALUES (?, ?, NULL, NULL, NULL, NULL, NULL)",
                 (doc_id, url))
         else:
             cursor.execute(
-                "UPDATE webpage SET URL = ?, title = NULL, description = NULL, total_words = NULL, corpus = NULL WHERE doc_id = ?",
+                "UPDATE webpage SET URL = ?, title = NULL, description = NULL, total_words = NULL, corpus = NULL, vector = NULL WHERE doc_id = ?",
                 (url, doc_id))
         cursor.close()
         return True
