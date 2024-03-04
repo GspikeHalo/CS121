@@ -58,7 +58,7 @@ class TokenProcessor:
             self._db.close()
 
     def _update_token_record(self, token: int, total_num: int) -> bool:
-        cursor = self._db.cursor
+        cursor = self._db.cursor()
         existing_record = cursor.execute("SELECT doc_num, total_num FROM tokens WHERE token = ?",
                                                (token,)).fetchone()
         if existing_record is None:
