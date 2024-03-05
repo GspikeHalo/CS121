@@ -125,7 +125,7 @@ class Method:
         Extracts general information from HTML content, such as title, first sentence, and total content length.
 
         :param content: The HTML content as bytes.
-        :return: A tuple containing the title, first sentence, and length of the processed content.
+        :return: A tuple containing the title, first sentence, and len of the processed content.
         """
         try:
             tree = html.fromstring(content)
