@@ -154,7 +154,7 @@ class DatabaseProcessor:
                 n_t = local_token_processor.get_doc_num(token)
                 n = local_raw_webpage_processor.get_total_length()
                 tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
-                tf_idf_list.append((token, tf_idf))
+                doc_vector_dict[token] = tf_idf
                 position = dict_position[token]
                 position = Method.deserialize_json_to_list(position)
                 self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
