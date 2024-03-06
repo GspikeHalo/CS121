@@ -20,14 +20,10 @@ class Engine:
         elif isinstance(event, CloseDatabaseEvent):
             yield self.close_database_event()
 
-    def search_token_event(self, event: SearchTokenEvent) -> TokenSearchEvent:  # 当前该方法只能处理一个token，不能处理多个
+    def search_token_event(self, event: SearchTokenEvent) -> TokenSearchEvent:
         tokens = event.get_content()
-        pages_s = []
-        for token in tokens:
-            for token_info in self._db.search_tokens(token):
-                pages = self._db.search_doc_id(token_info[1])  # 1是doc_id
-                pages_s.extend(pages)
-        result = [WebpageGeneralInfo(url=page[1], title=page[2], first_sentence=page[3]) for page in pages_s]
+        pages = self._db.search_tokens(tokens)
+        result = [WebpageGeneralInfo(url=page[1], title=page[2], first_sentence=page[3]) for page in pages]
         return TokenSearchEvent(result)
 
     def search_url_event(self, event: SearchURLEvent) -> URLSearchEvent:
@@ -51,12 +47,7 @@ if __name__ == '__main__':
     while True:
         user_input = input("输入token：")  # 暂时没有错误处理，请勿输入错误url
         print(user_input)
-        if not user_input:  # 如果输入为空
-            user = []  # 返回空列表
-        else:
-            user = user_input.split()  # 将字符串拆分为标记并返回
-        print(user)
-        for webpage_infos in engine.process_event(SearchTokenEvent(user)):
+        for webpage_infos in engine.process_event(SearchTokenEvent(user_input)):
             if not webpage_infos:
                 print("NONONONO")
                 continue

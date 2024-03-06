@@ -22,8 +22,8 @@ class RawWebpageProcessor:
                "title TEXT, "
                "description TEXT, "
                "total_words INT, "
-               "corpus BLOB, "
-               "vector TEXT)")
+               "corpus BLOB)"
+               )
         self._db.execute(sql)
         self._db.commit()
 
@@ -110,20 +110,6 @@ class RawWebpageProcessor:
         finally:
             cursor.close()
 
-    def update_tf_idf(self, doc_id: str, vector: str) -> None:
-        """
-        Updates the TF-IDF vector representation for a specific webpage.
-
-        :param doc_id: The document ID of the webpage.
-        :param vector: The TF-IDF vector as a string.
-        :return: None
-        """
-        cursor = self._db.cursor()
-        sql = "UPDATE webpage SET vector = ? WHERE doc_id = ?"
-        cursor.execute(sql, (vector, doc_id))
-        cursor.close()
-        self._db.commit()
-
     def get_all_doc_id(self) -> list[tuple]:
         """
         get all document IDs from the webpage table.
@@ -191,11 +177,11 @@ class RawWebpageProcessor:
         existing_record = cursor.execute("SELECT * FROM webpage WHERE doc_id = ?", (doc_id,)).fetchone()
         if existing_record is None:
             cursor.execute(
-                "INSERT INTO webpage (doc_id, URL, title, description, total_words, corpus, vector) VALUES (?, ?, NULL, NULL, NULL, NULL, NULL)",
+                "INSERT INTO webpage (doc_id, URL, title, description, total_words, corpus) VALUES (?, ?, NULL, NULL, NULL, NULL)",
                 (doc_id, url))
         else:
             cursor.execute(
-                "UPDATE webpage SET URL = ?, title = NULL, description = NULL, total_words = NULL, corpus = NULL, vector = NULL WHERE doc_id = ?",
+                "UPDATE webpage SET URL = ?, title = NULL, description = NULL, total_words = NULL, corpus = NULL WHERE doc_id = ?",
                 (url, doc_id))
         cursor.close()
         return True

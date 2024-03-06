@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 THREAD_NUM = 15
 
+
 class DatabaseProcessor:
     def __init__(self, update_time: int = 100):
         self._db = None
@@ -22,7 +23,8 @@ class DatabaseProcessor:
         self._token_processor = TokenProcessor()
         self._tokens_weight_processor = TokensWeightProcessor()
         self._pool = SQLiteConnectionPool("../../database/tf_idf_index.db", pool_size=THREAD_NUM)
-        self._inverted_index_db = InvertedIndexDB("CS121", "inverted_index")
+        self._inverted_index_db = InvertedIndexDB("CS121SearchEngine", "inverted_index")
+        self._inverted_index = None
         self._UPDATE_TIME = update_time
 
     def open_db(self, raw_pages: RawWebpages, db_path: str = "../../database/tf_idf_index.db") -> None:
@@ -38,10 +40,11 @@ class DatabaseProcessor:
                                                                    self._UPDATE_TIME) or not Method.check_num_difference(
             raw_pages.get_len(), num):
             print("update")
-            # self._update_database(raw_pages)
-            # self._remove_duplicate()
-            # self._update_tf_idf()
+            self._update_database(raw_pages)
+            self._remove_duplicate()
+            self._update_tf_idf()
 
+        self._inverted_index = self._inverted_index_db.fetch_all_as_dict()
 
     def get_db(self):
         return self._db
@@ -56,10 +59,21 @@ class DatabaseProcessor:
     def search_url(self, query: str) -> list[tuple]:
         return self._raw_webpage_processor.search_by_url(query)  # [("0/0", url, title, description)]
 
-    # def search_tokens(self, token: str) -> list[tuple]:  # 获取已经排序好的list of (doc_id, url)  # 进行修改
-    #     doc_ids = self._inverted_index_processor.search_by_tokens(token)
-    #     doc_ids = sorted(doc_ids, key=lambda x: x[2])  # 根据tf_idf进行排序
-    #     return doc_ids  # [(token01, "0/0", tf_idf), (token01, "0/1", tf_idf)]
+    def search_tokens(self, query: str) -> list[tuple]:
+        result = []
+        tokens = Method.preprocess_text(query)
+        if len(tokens) > 1:
+            print("in moltitokens")
+            query_vector = self._get_query_vector(tokens)
+            sorted_doc_ids = self._process_tokens(tokens, query_vector)
+        elif len(tokens) == 1:
+            print("in single tokens")
+            sorted_doc_ids = self._inverted_index_db.get_sorted_doc_ids_by_token(query[0])
+        else:
+            sorted_doc_ids = []
+        for doc_id in sorted_doc_ids:
+            result.extend(self._raw_webpage_processor.search_by_doc_id(doc_id))
+        return result
 
     def search_doc_id(self, doc_id: str) -> list[tuple]:
         return self._raw_webpage_processor.search_by_doc_id(doc_id)
@@ -72,7 +86,6 @@ class DatabaseProcessor:
         self._raw_webpage_processor.init_raw_webpage(self._db)
         self._token_processor.init_tokens(self._db)
         self._tokens_weight_processor.init_tokens_weight(self._db)
-        # self._weight_matrix.init_db(self._db)
 
     def _update_database(self, raw_pages: RawWebpages) -> None:
         raw_webpage_num = self._raw_webpage_processor.update_raw_webpage(raw_pages.get_pages())
@@ -101,7 +114,7 @@ class DatabaseProcessor:
             token_info = Method.calculate_token_weight(byte_content)
             self._token_processor.remove_duplicate(token_info)
 
-    def calculate_and_update_tf_idf(self, doc_id, original_dict_keys):
+    def _calculate_and_update_tf_idf(self, doc_id, original_dict_keys):
         db_connection = self._pool.get_connection()
         doc_vector_dict = {key: 0 for key in original_dict_keys}
         try:
@@ -125,11 +138,7 @@ class DatabaseProcessor:
                 tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
                 doc_vector_dict[token] = tf_idf
                 position = dict_position[token]
-                position = Method.deserialize_json_to_list(position)
                 self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
-            doc_vector = doc_vector_dict.values()
-            doc_vector = list(doc_vector)
-            local_raw_webpage_processor.update_tf_idf(doc_id, Method.serialize_list_to_json(doc_vector))
         except Exception as e:
             print(e)
         finally:
@@ -140,10 +149,55 @@ class DatabaseProcessor:
         original_keys = [token[0] for token in self._token_processor.get_all_tokens()]
         try:
             with ThreadPoolExecutor(max_workers=THREAD_NUM) as executor:
-                func = functools.partial(self.calculate_and_update_tf_idf, original_dict_keys=original_keys)
+                func = functools.partial(self._calculate_and_update_tf_idf, original_dict_keys=original_keys)
                 executor.map(func, doc_ids)
         finally:
             self._pool.close_all_connections()
+
+    def _get_query_vector(self, tokens: list[str]) -> dict:
+        print("get query vector")
+        d = len(tokens)
+        n = self._raw_webpage_processor.get_total_length() + 1
+        token_counts = {}
+        for token in tokens:
+            if token in token_counts:
+                token_counts[token] += 1
+            else:
+                token_counts[token] = 1
+
+        dict_tf_idf = {}
+        for token in tokens:
+            f_td = token_counts[token]
+            n_t = self._token_processor.get_doc_num(token) + 1
+            tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
+            dict_tf_idf[token] = tf_idf
+        print("down")
+        return dict_tf_idf
+
+    def _process_tokens(self, query: list, query_dict: dict) -> list:
+        doc_ids = self._raw_webpage_processor.get_all_doc_id()
+        scores = {doc_id[0]: 0 for doc_id in doc_ids}
+        doc_lengths = {doc_id[0]: 0 for doc_id in doc_ids}
+
+        for token in query:
+            if token not in self._inverted_index:
+                continue
+            wt_q = query_dict[token]
+            postings_list = self._inverted_index[token]
+            for doc_info in postings_list:
+                doc_id = doc_info['docID']
+                wt_d = doc_info['tf_idf']
+                if doc_id in scores:
+                    print(doc_id)
+                    scores[doc_id] += wt_d * wt_q
+                    doc_lengths[doc_id] += wt_d ** 2
+
+            for doc_id in scores:
+                if doc_lengths[doc_id] > 0:
+                    doc_length = doc_lengths[doc_id] ** 0.5
+                    scores[doc_id] /= doc_length
+
+            return [doc_id for doc_id in sorted(scores, key=scores.get, reverse=True)]
 
 
 if __name__ == '__main__':

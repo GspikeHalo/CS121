@@ -20,10 +20,10 @@ class DatabaseCloseEvent:
 
 
 class SearchTokenEvent:
-    def __init__(self, content: list[str]):
+    def __init__(self, content: str):
         self._content = content
 
-    def get_content(self) -> list[str]:
+    def get_content(self) -> str:
         return self._content
 
 

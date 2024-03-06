@@ -65,3 +65,32 @@ class InvertedIndexDB:
             return result["documents"]
         else:
             return []
+
+    def get_sorted_doc_ids_by_token(self, token: str) -> list[str]:
+        """
+        Retrieves document IDs associated with a given token, sorted by their TF-IDF score in descending order.
+
+        :param token: The token for which to retrieve sorted document IDs.
+        :return: A list of document IDs associated with the token, sorted by TF-IDF score.
+        """
+        result = self.collection.find_one({"token": token})
+        if result:
+            documents = result["documents"]
+            sorted_documents = sorted(documents, key=lambda d: d['tf_idf'], reverse=True)
+            sorted_doc_ids = [d['docID'] for d in sorted_documents]
+            return sorted_doc_ids
+        else:
+            return []
+
+    def fetch_all_as_dict(self):
+        """
+        Fetches the entire collection and returns it as a dictionary.
+
+        :return: A dictionary with tokens as keys and lists of documents as values.
+        """
+        inverted_index_dict = {}
+        for document in self.collection.find():
+            token = document["token"]
+            documents_info = document.get("documents", [])
+            inverted_index_dict[token] = documents_info
+        return inverted_index_dict
