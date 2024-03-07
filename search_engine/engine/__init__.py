@@ -1,7 +1,6 @@
 # search_engine/engine/__init__.py
 
 
-from .structure import *
 from .main import Engine
 from .method import Method
 from .database_processor import DatabaseProcessor

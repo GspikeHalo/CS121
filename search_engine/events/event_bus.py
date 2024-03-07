@@ -12,9 +12,5 @@ class EventBus:
         self._engine = engine
 
     def initiate_event(self, event):
-        if hasattr(event, "_INTERNAL"):
-            # view内部处理
-            pass
-        else:
-            # 进入engine处理
-            pass
+        result_event = self._engine.process_event(event)
+        self._view.event_handler(result_event)

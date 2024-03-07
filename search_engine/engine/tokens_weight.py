@@ -1,6 +1,6 @@
 #  .search_engine/engine/tokens_weight.py
 
-from method import Method
+from search_engine.engine.method import Method
 
 
 class TokensWeightProcessor:

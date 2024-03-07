@@ -1,34 +1,38 @@
 #  .search_engine/engine/database_processor.py
-
+import os
 import sqlite3
 import datetime
 import functools
-from method import Method
-from raw_webpage import RawWebpageProcessor
-from tokens import TokenProcessor
-from tokens_weight import TokensWeightProcessor
-from file_processor import RawWebpages, Log
-from inverted_index import InvertedIndexDB
-from connection_pool import SQLiteConnectionPool
+import heapq
+from search_engine.engine.method import Method
+from search_engine.engine.raw_webpage import RawWebpageProcessor
+from search_engine.engine.tokens import TokenProcessor
+from search_engine.engine.tokens_weight import TokensWeightProcessor
+from search_engine.engine.file_processor import RawWebpages, Log
+from search_engine.engine.inverted_index import InvertedIndexDB
+from search_engine.engine.connection_pool import SQLiteConnectionPool
 from concurrent.futures import ThreadPoolExecutor
 
-THREAD_NUM = 15
+THREAD_NUM = 10
 
 
 class DatabaseProcessor:
     def __init__(self, update_time: int = 100):
         self._db = None
-        self._log = Log("../../database/db_log.txt")
+        self._log = None
         self._raw_webpage_processor = RawWebpageProcessor()
         self._token_processor = TokenProcessor()
         self._tokens_weight_processor = TokensWeightProcessor()
-        self._pool = SQLiteConnectionPool("../../database/tf_idf_index.db", pool_size=THREAD_NUM)
-        self._inverted_index_db = InvertedIndexDB("CS121SearchEngine", "inverted_index")
+        self._pool = None
+        self._inverted_index_db = InvertedIndexDB("CS121", "inverted_index")
         self._inverted_index = None
         self._UPDATE_TIME = update_time
 
-    def open_db(self, raw_pages: RawWebpages, db_path: str = "../../database/tf_idf_index.db") -> None:
-        self._ensure_database_exists(db_path)
+    def open_db(self, raw_pages: RawWebpages, db_path: str = "../../") -> None:
+        database_path = os.path.join(db_path, "database/tf_idf_index.db")
+        self._ensure_database_exists(database_path)
+        self._log = Log(os.path.join(db_path, "database/db_log.txt"))
+        self._pool = SQLiteConnectionPool(database_path, pool_size=THREAD_NUM)
         latest_log = self._log.get_latest_log()
         if latest_log:
             time, num = latest_log.strip().split(" ")
@@ -41,9 +45,8 @@ class DatabaseProcessor:
             raw_pages.get_len(), num):
             print("update")
             self._update_database(raw_pages)
-            self._remove_duplicate()
+            self._remove_duplicate(raw_pages)
             self._update_tf_idf()
-
         self._inverted_index = self._inverted_index_db.fetch_all_as_dict()
 
     def get_db(self):
@@ -72,7 +75,12 @@ class DatabaseProcessor:
         else:
             sorted_doc_ids = []
         for doc_id in sorted_doc_ids:
-            result.extend(self._raw_webpage_processor.search_by_doc_id(doc_id))
+            doc_result = self._raw_webpage_processor.search_by_doc_id(doc_id)
+            if len(result) + len(doc_result) > 50:
+                result.extend(doc_result[:50 - len(result)])
+                break
+            else:
+                result.extend(doc_result)
         return result
 
     def search_doc_id(self, doc_id: str) -> list[tuple]:
@@ -103,7 +111,7 @@ class DatabaseProcessor:
         log = f"{datetime.datetime.now().date()} {raw_webpage_num}"
         self._log.update_log(log)
 
-    def _remove_duplicate(self):
+    def _remove_duplicate(self, raw_pages: RawWebpages):
         duplicate_ids = self._raw_webpage_processor.remove_duplicate()
         self._tokens_weight_processor.remove_duplicate(duplicate_ids)
         for doc_id in duplicate_ids:
@@ -138,6 +146,7 @@ class DatabaseProcessor:
                 tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
                 doc_vector_dict[token] = tf_idf
                 position = dict_position[token]
+                position = Method.deserialize_json_to_list(position)
                 self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
         except Exception as e:
             print(e)
@@ -155,7 +164,6 @@ class DatabaseProcessor:
             self._pool.close_all_connections()
 
     def _get_query_vector(self, tokens: list[str]) -> dict:
-        print("get query vector")
         d = len(tokens)
         n = self._raw_webpage_processor.get_total_length() + 1
         token_counts = {}
@@ -171,15 +179,16 @@ class DatabaseProcessor:
             n_t = self._token_processor.get_doc_num(token) + 1
             tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
             dict_tf_idf[token] = tf_idf
-        print("down")
         return dict_tf_idf
 
     def _process_tokens(self, query: list, query_dict: dict) -> list:
-        doc_ids = self._raw_webpage_processor.get_all_doc_id()
-        scores = {doc_id[0]: 0 for doc_id in doc_ids}
-        doc_lengths = {doc_id[0]: 0 for doc_id in doc_ids}
+        scores = {}
+        doc_lengths = {}
+        phrase_bonus = 2.0
+        processed_tokens = set()
+        doc_positions = {}
 
-        for token in query:
+        for i, token in enumerate(query):
             if token not in self._inverted_index:
                 continue
             wt_q = query_dict[token]
@@ -187,31 +196,54 @@ class DatabaseProcessor:
             for doc_info in postings_list:
                 doc_id = doc_info['docID']
                 wt_d = doc_info['tf_idf']
-                if doc_id in scores:
-                    print(doc_id)
-                    scores[doc_id] += wt_d * wt_q
-                    doc_lengths[doc_id] += wt_d ** 2
+                positions = doc_info["position"]
+                if doc_id not in doc_positions:
+                    doc_positions[doc_id] = []
+                doc_positions[doc_id].append(positions)
 
-            for doc_id in scores:
-                if doc_lengths[doc_id] > 0:
-                    doc_length = doc_lengths[doc_id] ** 0.5
-                    scores[doc_id] /= doc_length
+                if token in processed_tokens:
+                    continue
+                if doc_id not in scores:
+                    scores[doc_id] = 0
+                    doc_lengths[doc_id] = 0
+                scores[doc_id] += wt_d * wt_q
+                doc_lengths[doc_id] += wt_d ** 2
+            processed_tokens.add(token)
 
-            return [doc_id for doc_id in sorted(scores, key=scores.get, reverse=True)]
+        for doc_id, positions_list in doc_positions.items():
+            if len(positions_list) > 1:
+                for i in range(len(positions_list) - 1):
+                    for pos in positions_list[i]:
+                        if any(pos + 1 == next_pos for next_pos in positions_list[i + 1]):
+                            scores[doc_id] += phrase_bonus
+                            break
+
+        # Length Normalization
+        for doc_id in scores:
+            if doc_lengths[doc_id] > 0:
+                doc_length = doc_lengths[doc_id] ** 0.5
+                scores[doc_id] /= doc_length
+
+        top_50_doc_ids = heapq.nlargest(50, scores, key=scores.get)
+        print(top_50_doc_ids)
+        return top_50_doc_ids
 
 
 if __name__ == '__main__':
-    db_processor = DatabaseProcessor()
-    raw_pages = RawWebpages()
-    db_processor.open_db(raw_pages)
-    db = db_processor.get_db()
-    cursor = db.cursor()
-    sql = "SELECT * FROM webpage"
     try:
-        cursor.execute(sql)
-        result = cursor.fetchall()
-        print('1')
+        db_processor = DatabaseProcessor()
+        raw_pages = RawWebpages()
+        raw_pages.set_root_path()
 
+        db_processor.open_db(raw_pages)
+        db = db_processor.get_db()
+        cursor = db.cursor()
+        # print("1")
+        print("start search")
+        result = db_processor.search_tokens("ics major")
+        print(result)
+
+        print('Finish Update Database')
         db_processor.close_db()
     except Exception as e:
         print("Error:", e)

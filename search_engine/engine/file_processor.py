@@ -11,7 +11,10 @@ class RawWebpages:
     def __init__(self):
         self._len = 0
         self._pages = {}
-        self._root_path = "../../WEBPAGES_RAW"
+        self._root_path = None
+
+    def set_root_path(self, path="../../"):
+        self._root_path = os.path.join(path, "WEBPAGES_RAW")
 
     def get_len(self) -> int:
         """

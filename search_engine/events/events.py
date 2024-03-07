@@ -1,10 +1,14 @@
 #  search_engine/events/events.py
 
-from search_engine.engine.structure import WebpageGeneralInfo
+from search_engine.events.structure import WebpageGeneralInfo
 
 
 class OpenDatabaseEvent:
-    pass
+    def __init__(self, db_path):
+        self._db_path = db_path
+
+    def get_db_path(self):
+        return self._db_path
 
 
 class DatabaseOpenEvent:
