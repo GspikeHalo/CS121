@@ -58,7 +58,7 @@ class DatabaseProcessor:
             print("update")
             self._update_database(raw_pages)
             self._remove_duplicate(raw_pages)
-        self._update_tf_idf()
+            self._update_tf_idf()
         self._inverted_index = self._inverted_index_db.fetch_all_as_dict()
 
     def get_db(self):
