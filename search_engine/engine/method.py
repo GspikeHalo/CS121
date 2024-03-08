@@ -191,19 +191,3 @@ class Method:
         :return: The list represented by the JSON string.
         """
         return json.loads(json_str)
-
-    @staticmethod
-    def cosine_similarity(vec1: list, vec2: list) -> float:
-        """
-        Calculates the cosine similarity between two vectors.
-
-        :param vec1: A list of numbers representing the first vector.
-        :param vec2: A list of numbers representing the second vector.
-        :return: A float representing the cosine similarity between the two vectors.
-        """
-        dot_product = np.dot(vec1, vec2)
-        norm_vec1 = np.linalg.norm(vec1)
-        norm_vec2 = np.linalg.norm(vec2)
-        if norm_vec1 == 0 or norm_vec2 == 0:
-            return 0
-        return dot_product / (norm_vec1 * norm_vec2)

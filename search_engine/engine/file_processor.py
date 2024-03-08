@@ -8,6 +8,7 @@ class RawWebpages:
     """
     A class to manage and access the content of raw webpages stored in files.
     """
+
     def __init__(self):
         self._len = 0
         self._pages = {}

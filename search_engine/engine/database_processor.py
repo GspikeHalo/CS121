@@ -1,4 +1,5 @@
 #  .search_engine/engine/database_processor.py
+
 import os
 import sqlite3
 import datetime
@@ -17,6 +18,10 @@ THREAD_NUM = 10
 
 
 class DatabaseProcessor:
+    """
+    A class that manages the entire database. Manage all database-related transactions.
+    """
+
     def __init__(self, update_time: int = 100):
         self._db = None
         self._log = None
@@ -24,11 +29,18 @@ class DatabaseProcessor:
         self._token_processor = TokenProcessor()
         self._tokens_weight_processor = TokensWeightProcessor()
         self._pool = None
-        self._inverted_index_db = InvertedIndexDB("CS121", "inverted_index")
+        self._inverted_index_db = InvertedIndexDB("CS121SearchEngine", "inverted_index")
         self._inverted_index = None
         self._UPDATE_TIME = update_time
 
     def open_db(self, raw_pages: RawWebpages, db_path: str = "../../") -> None:
+        """
+        Initialize all database processors. If the condition is met, these databases are initialized.
+
+        :param raw_pages: An instance that stores doc id and URL information
+        :param db_path: Database root directory
+        :return: None
+        """
         database_path = os.path.join(db_path, "database/tf_idf_index.db")
         self._ensure_database_exists(database_path)
         self._log = Log(os.path.join(db_path, "database/db_log.txt"))
@@ -46,10 +58,15 @@ class DatabaseProcessor:
             print("update")
             self._update_database(raw_pages)
             self._remove_duplicate(raw_pages)
-            self._update_tf_idf()
+        self._update_tf_idf()
         self._inverted_index = self._inverted_index_db.fetch_all_as_dict()
 
     def get_db(self):
+        """
+        Fetching the database
+
+        :return: The database currently in use
+        """
         return self._db
 
     def close_db(self) -> None:
@@ -60,13 +77,26 @@ class DatabaseProcessor:
             self._db.close()
 
     def search_url(self, query: str) -> list[tuple]:
+        """
+        Based on the URL entered, search the database
+
+        :param query: The URL to query
+        :return: Search results
+        """
+        print("in URL")
         return self._raw_webpage_processor.search_by_url(query)  # [("0/0", url, title, description)]
 
     def search_tokens(self, query: str) -> list[tuple]:
+        """
+        Based on the query entered, search the database
+
+        :param query: Input query
+        :return: Search results
+        """
         result = []
         tokens = Method.preprocess_text(query)
         if len(tokens) > 1:
-            print("in moltitokens")
+            print("in multi tokens")
             query_vector = self._get_query_vector(tokens)
             sorted_doc_ids = self._process_tokens(tokens, query_vector)
         elif len(tokens) == 1:
@@ -83,19 +113,33 @@ class DatabaseProcessor:
                 result.extend(doc_result)
         return result
 
-    def search_doc_id(self, doc_id: str) -> list[tuple]:
-        return self._raw_webpage_processor.search_by_doc_id(doc_id)
-
     def _ensure_database_exists(self, db_path: str) -> None:
+        """
+        Connect to the database and initialize the tables
+
+        :param db_path: Database root directory
+        :return: None
+        """
         self._db = sqlite3.connect(db_path, timeout=30)
         self._initialize_db()
 
     def _initialize_db(self) -> None:
+        """
+        Initialize the tables
+
+        :return: None
+        """
         self._raw_webpage_processor.init_raw_webpage(self._db)
         self._token_processor.init_tokens(self._db)
         self._tokens_weight_processor.init_tokens_weight(self._db)
 
     def _update_database(self, raw_pages: RawWebpages) -> None:
+        """
+        Save the updated content into the database
+
+        :param raw_pages: An instance that stores doc id and URL information
+        :return: None
+        """
         raw_webpage_num = self._raw_webpage_processor.update_raw_webpage(raw_pages.get_pages())
         doc_ids = self._raw_webpage_processor.get_all_doc_id()
         for doc_id in doc_ids:
@@ -111,7 +155,13 @@ class DatabaseProcessor:
         log = f"{datetime.datetime.now().date()} {raw_webpage_num}"
         self._log.update_log(log)
 
-    def _remove_duplicate(self, raw_pages: RawWebpages):
+    def _remove_duplicate(self, raw_pages: RawWebpages) -> None:
+        """
+        Remove duplicate data from the database
+
+        :param raw_pages: An instance that stores doc id and URL information
+        :return: None
+        """
         duplicate_ids = self._raw_webpage_processor.remove_duplicate()
         self._tokens_weight_processor.remove_duplicate(duplicate_ids)
         for doc_id in duplicate_ids:
@@ -122,9 +172,15 @@ class DatabaseProcessor:
             token_info = Method.calculate_token_weight(byte_content)
             self._token_processor.remove_duplicate(token_info)
 
-    def _calculate_and_update_tf_idf(self, doc_id, original_dict_keys):
+    def _calculate_and_update_tf_idf(self, doc_id):
+        """
+        Calculate tf-idf for all tokens in a single file
+
+        :param doc_id: doc id of the file
+        :return: None
+        """
         db_connection = self._pool.get_connection()
-        doc_vector_dict = {key: 0 for key in original_dict_keys}
+
         try:
             local_raw_webpage_processor = RawWebpageProcessor()
             local_tokens_weight_processor = TokensWeightProcessor()
@@ -144,7 +200,6 @@ class DatabaseProcessor:
                 n_t = local_token_processor.get_doc_num(token)
                 n = local_raw_webpage_processor.get_total_length()
                 tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
-                doc_vector_dict[token] = tf_idf
                 position = dict_position[token]
                 position = Method.deserialize_json_to_list(position)
                 self._inverted_index_db.update_tf_idf(token, doc_id, tf_idf, position)
@@ -154,16 +209,25 @@ class DatabaseProcessor:
             self._pool.release_connection(db_connection)
 
     def _update_tf_idf(self):
+        """
+        Update inverted index, including position, tf-idf.
+
+        :return: None
+        """
         doc_ids = [doc_id[0] for doc_id in self._raw_webpage_processor.get_all_doc_id()]
-        original_keys = [token[0] for token in self._token_processor.get_all_tokens()]
         try:
             with ThreadPoolExecutor(max_workers=THREAD_NUM) as executor:
-                func = functools.partial(self._calculate_and_update_tf_idf, original_dict_keys=original_keys)
-                executor.map(func, doc_ids)
+                executor.map(self._calculate_and_update_tf_idf, doc_ids)
         finally:
             self._pool.close_all_connections()
 
     def _get_query_vector(self, tokens: list[str]) -> dict:
+        """
+        Calculate the tf-idf for each word in the query
+
+        :param tokens: Each token in the query
+        :return: A dictionary containing the tf-idf of each token
+        """
         d = len(tokens)
         n = self._raw_webpage_processor.get_total_length() + 1
         token_counts = {}
@@ -182,6 +246,14 @@ class DatabaseProcessor:
         return dict_tf_idf
 
     def _process_tokens(self, query: list, query_dict: dict) -> list:
+        """
+        The file score is obtained by calculating the cosine similarity and location information of each file.
+        And pick the first 50 to return
+
+        :param query: Query
+        :param query_dict: tf-idf for each token of the query
+        :return:
+        """
         scores = {}
         doc_lengths = {}
         phrase_bonus = 2.0
@@ -239,10 +311,9 @@ if __name__ == '__main__':
         db = db_processor.get_db()
         cursor = db.cursor()
         # print("1")
-        print("start search")
-        result = db_processor.search_tokens("ics major")
-        print(result)
-
+        # print("start search")
+        # result = db_processor.search_tokens("ics major")
+        # print(result)
         print('Finish Update Database')
         db_processor.close_db()
     except Exception as e:

@@ -6,7 +6,6 @@ from pymongo import MongoClient
 class InvertedIndexDB:
     """
     A class to manage the inverted index within a MongoDB database for efficient full-text searching.
-
     """
 
     def __init__(self, db_name, collection_name):
@@ -52,19 +51,6 @@ class InvertedIndexDB:
                 ]
             }
             self.collection.insert_one(new_entry)
-
-    def get_documents_by_token(self, token: str) -> list[dict]:
-        """
-        Retrieves documents associated with a given token.
-
-        :param token: The token for which to retrieve documents.
-        :return: A list of documents associated with the token, or empty list if the token is not found.
-        """
-        result = self.collection.find_one({"token": token})
-        if result:
-            return result["documents"]
-        else:
-            return []
 
     def get_sorted_doc_ids_by_token(self, token: str) -> list[str]:
         """

@@ -70,17 +70,6 @@ class TokenProcessor:
         finally:
             cursor.close()
 
-    def get_all_tokens(self) -> list[tuple]:
-        """
-        Fetches all tokens from the database in ascending order by token.
-
-        :return: A list of tuples, each containing a single token.
-        """
-        cursor = self._db.cursor()
-        result = cursor.execute("SELECT token FROM tokens ORDER BY token ASC").fetchall()
-        cursor.close()
-        return result
-
     def get_doc_num(self, token) -> int:
         """
         get the number of documents associated with a given token.
