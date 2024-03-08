@@ -61,15 +61,6 @@ class MainView(tk.Tk):
         self.detail_frame = tk.Frame(self)
         self.detail_frame.pack(fill = tk.X, padx = 5, pady = 5)
 
-        # # 详细信息查看输入框，用户输入结果编号查看详情
-        # self.detail_entry = tk.Entry(self.detail_frame, width = 5)
-        # self.detail_entry.pack(side = tk.LEFT, padx = 5)
-        #
-        # # 显示详细信息的按钮
-        # self.detail_button = tk.Button(self.detail_frame, text = "Show Detail",
-        #                                command = self.on_show_detail)
-        # self.detail_button.pack(side = tk.LEFT, padx = 5)
-
         # 分页按钮的容器，放在detail_frame的最右边
         self.page_navigation_frame = tk.Frame(self.detail_frame)
         self.page_navigation_frame.pack(side = tk.RIGHT, padx = 5)
@@ -94,16 +85,6 @@ class MainView(tk.Tk):
             self._event_bus.initiate_event(SearchURLEvent(query))
         elif search_option == "token":
             self._event_bus.initiate_event(SearchTokenEvent(query))
-
-    # def on_show_detail(self):
-    #     """
-    #     处理显示详细信息按钮点击事件，请求显示选定搜索结果的详情。
-    #     """
-    #     # try:
-    #     #     index = int(self.detail_entry.get()) - 1
-    #     #     self._event_bus.initiate_event(SearchDetailsRequestedEvent(index))
-    #     # except ValueError:
-    #     #     messagebox.showerror("Error", "Please enter a valid result number.")
 
     def on_change_page(self, direction):
         if direction == "next" and self._current_page < len(self._paged_results) - 1:
