@@ -29,7 +29,7 @@ class DatabaseProcessor:
         self._token_processor = TokenProcessor()
         self._tokens_weight_processor = TokensWeightProcessor()
         self._pool = None
-        self._inverted_index_db = InvertedIndexDB("CS121SearchEngine", "inverted_index")
+        self._inverted_index_db = InvertedIndexDB("CS121", "inverted_index")
         self._inverted_index = None
         self._UPDATE_TIME = update_time
 
