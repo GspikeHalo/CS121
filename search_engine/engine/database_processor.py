@@ -97,11 +97,12 @@ class DatabaseProcessor:
         tokens = Method.preprocess_text(query)
         if len(tokens) > 1:
             print("in multi tokens")
+            print(tokens)
             query_vector = self._get_query_vector(tokens)
             sorted_doc_ids = self._process_tokens(tokens, query_vector)
         elif len(tokens) == 1:
             print("in single tokens")
-            sorted_doc_ids = self._inverted_index_db.get_sorted_doc_ids_by_token(query[0])
+            sorted_doc_ids = self._inverted_index_db.get_sorted_doc_ids_by_token(query.lower())
         else:
             sorted_doc_ids = []
         for doc_id in sorted_doc_ids:
@@ -315,10 +316,10 @@ if __name__ == '__main__':
         db_processor.open_db(raw_pages)
         db = db_processor.get_db()
         cursor = db.cursor()
-        # print("1")
-        # print("start search")
-        # result = db_processor.search_tokens("ics major")
-        # print(result)
+        print("1")
+        print("start search")
+        result = db_processor.search_tokens("Major")
+        print(result)
         print('Finish Update Database')
         db_processor.close_db()
     except Exception as e:

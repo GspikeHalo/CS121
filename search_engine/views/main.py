@@ -82,13 +82,15 @@ class MainView(tk.Tk):
     def event_handler(self, event):
         if isinstance(event, TokenSearchEvent):
             search_result = event.get_content()
-            self._paged_results = list(MainView.chunk_list(search_result, 10))
-            self._current_page = 0
+            if search_result:
+                self._paged_results = list(MainView.chunk_list(search_result, 10))
+                self._current_page = 0
             self._display_current_page()
         elif isinstance(event, URLSearchEvent):
             search_result = event.get_content()
-            self._paged_results = list(MainView.chunk_list(search_result, 10))
-            self._current_page = 0
+            if search_result:
+                self._paged_results = list(MainView.chunk_list(search_result, 10))
+                self._current_page = 0
             self._display_current_page()
         elif isinstance(event, DatabaseOpenEvent):
             print("DB connect success")
