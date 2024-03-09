@@ -23,14 +23,13 @@ class Engine:
     def _search_token_event(self, event: SearchTokenEvent) -> TokenSearchEvent:
         tokens = event.get_content()
         pages = self._db.search_tokens(tokens)
-        result = [WebpageGeneralInfo(url=page[1], title=page[2], first_sentence=page[3]) for page in pages]
-        print(len(result))
+        result = [WebpageGeneralInfo(doc_id=page[0], url=page[1], title=page[2], first_sentence=page[3]) for page in pages]
         return TokenSearchEvent(result)
 
     def _search_url_event(self, event: SearchURLEvent) -> URLSearchEvent:
         inquiry = event.get_content()
         pages = self._db.search_url(inquiry)  # InfoBridge
-        result = [WebpageGeneralInfo(url=page[1], title=page[2], first_sentence=page[3]) for page in pages]
+        result = [WebpageGeneralInfo(doc_id=page[0], url=page[1], title=page[2], first_sentence=page[3]) for page in pages]
         return URLSearchEvent(result)
 
     def _open_database_event(self, event: OpenDatabaseEvent) -> DatabaseOpenEvent:

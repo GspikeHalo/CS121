@@ -12,10 +12,19 @@ class WebpageGeneralInfo:
     A class to store and manage general information about a webpage.
     """
 
-    def __init__(self, title=None, url=None, first_sentence=None):
+    def __init__(self, doc_id=None, title=None, url=None, first_sentence=None):
+        self._doc_id = doc_id
         self._title = title
         self._url = url
         self._first_sentence = first_sentence
+
+    def get_doc_id(self) -> str:
+        """
+        Returns the doc_id of the webpage.
+
+        :return: The doc id of the webpage
+        """
+        return self._doc_id
 
     def get_title(self) -> str:
         """

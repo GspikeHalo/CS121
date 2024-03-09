@@ -298,6 +298,11 @@ class DatabaseProcessor:
 
         top_50_doc_ids = heapq.nlargest(50, scores, key=scores.get)
         print(top_50_doc_ids)
+
+        # top_50_doc_ids_scores = heapq.nlargest(50, scores.items(), key=lambda item: item[1])
+        # for doc_id, score in top_50_doc_ids_scores:
+        #     print(f"Doc ID: {doc_id}, Score: {score}")
+
         return top_50_doc_ids
 
 
