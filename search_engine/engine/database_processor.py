@@ -256,7 +256,7 @@ class DatabaseProcessor:
         """
         scores = {}
         doc_lengths = {}
-        phrase_bonus = 2.0
+        phrase_bonus = 0.5
         processed_tokens = set()
         doc_positions = {}
 
@@ -282,6 +282,12 @@ class DatabaseProcessor:
                 doc_lengths[doc_id] += wt_d ** 2
             processed_tokens.add(token)
 
+        # Length Normalization
+        for doc_id in scores:
+            if doc_lengths[doc_id] > 0:
+                doc_length = doc_lengths[doc_id] ** 0.5
+                scores[doc_id] /= doc_length
+
         for doc_id, positions_list in doc_positions.items():
             if len(positions_list) > 1:
                 for i in range(len(positions_list) - 1):
@@ -289,12 +295,6 @@ class DatabaseProcessor:
                         if any(pos + 1 == next_pos for next_pos in positions_list[i + 1]):
                             scores[doc_id] += phrase_bonus
                             break
-
-        # Length Normalization
-        for doc_id in scores:
-            if doc_lengths[doc_id] > 0:
-                doc_length = doc_lengths[doc_id] ** 0.5
-                scores[doc_id] /= doc_length
 
         top_50_doc_ids = heapq.nlargest(50, scores, key=scores.get)
         print(top_50_doc_ids)
