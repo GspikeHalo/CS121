@@ -78,9 +78,13 @@ class TokenProcessor:
         :return: The number of documents associated with the token.
         """
         cursor = self._db.cursor()
-        result = cursor.execute("SELECT doc_num FROM tokens WHERE token=?", (token,)).fetchone()[0]
+        result = cursor.execute("SELECT doc_num FROM tokens WHERE token=?", (token,)).fetchone()
         cursor.close()
-        return result
+
+        if result is not None:
+            return result[0]
+        else:
+            return 0
 
     def close(self) -> None:
         """

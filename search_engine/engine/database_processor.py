@@ -102,7 +102,8 @@ class DatabaseProcessor:
             sorted_doc_ids = self._process_tokens(tokens, query_vector)
         elif len(tokens) == 1:
             print("in single tokens")
-            sorted_doc_ids = self._inverted_index_db.get_sorted_doc_ids_by_token(query.lower())
+            sorted_doc_ids = self._inverted_index_db.get_sorted_doc_ids_by_token(tokens[0].lower())
+            print(sorted_doc_ids)
         else:
             sorted_doc_ids = []
         for doc_id in sorted_doc_ids:

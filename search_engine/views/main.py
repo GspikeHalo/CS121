@@ -85,11 +85,17 @@ class MainView(tk.Tk):
             if search_result:
                 self._paged_results = list(MainView.chunk_list(search_result, 10))
                 self._current_page = 0
+            else:
+                self._paged_results = None
+                self._current_page = 0
             self._display_current_page()
         elif isinstance(event, URLSearchEvent):
             search_result = event.get_content()
             if search_result:
                 self._paged_results = list(MainView.chunk_list(search_result, 10))
+                self._current_page = 0
+            else:
+                self._paged_results = None
                 self._current_page = 0
             self._display_current_page()
         elif isinstance(event, DatabaseOpenEvent):
