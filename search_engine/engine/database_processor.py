@@ -229,10 +229,10 @@ class DatabaseProcessor:
         :param tokens: Each token in the query
         :return: A dictionary containing the tf-idf of each token
         """
-        d = len(tokens)
-        n = self._raw_webpage_processor.get_total_length() + 1
+        d = len(tokens)  # Calculate the total number of tokens in the query.
+        n = self._raw_webpage_processor.get_total_length() + 1  # Get the total number of documents in the collection
         token_counts = {}
-        for token in tokens:
+        for token in tokens:  # Iterate through each token in the query.
             if token in token_counts:
                 token_counts[token] += 1
             else:
@@ -240,8 +240,8 @@ class DatabaseProcessor:
 
         dict_tf_idf = {}
         for token in tokens:
-            f_td = token_counts[token]
-            n_t = self._token_processor.get_doc_num(token) + 1
+            f_td = token_counts[token]  # Get the frequency of the token in the query.
+            n_t = self._token_processor.get_doc_num(token) + 1  # Get the number of documents containing the token
             tf_idf = Method.calculate_tf_idf(f_td, d, n, n_t)
             dict_tf_idf[token] = tf_idf
         return dict_tf_idf
@@ -255,45 +255,47 @@ class DatabaseProcessor:
         :param query_dict: tf-idf for each token of the query
         :return:
         """
-        scores = {}
-        doc_lengths = {}
+        scores = {}  # cosine similarity scores for each document
+        doc_lengths = {}  # sum of squares of TF-IDF values for each document.
         phrase_bonus = 0.5
         processed_tokens = set()
-        doc_positions = {}
+        doc_positions = {}  # the positions of each token in documents
 
+        # Iterate over each token in the query
         for i, token in enumerate(query):
             if token not in self._inverted_index:
                 continue
-            wt_q = query_dict[token]
-            postings_list = self._inverted_index[token]
-            for doc_info in postings_list:
+            wt_q = query_dict[token]  # Retrieve the token's TF-IDF weight in the query
+            postings_list = self._inverted_index[token]  # Get the posting list from the inverted index for the token.
+            for doc_info in postings_list:  # Iterate over documents in the posting list.
                 doc_id = doc_info['docID']
-                wt_d = doc_info['tf_idf']
-                positions = doc_info["position"]
-                if doc_id not in doc_positions:
+                wt_d = doc_info['tf_idf']  # TF-IDF weight
+                positions = doc_info["position"]  # positions
+                if doc_id not in doc_positions:  # Initialize the position list
                     doc_positions[doc_id] = []
                 doc_positions[doc_id].append(positions)
 
-                if token in processed_tokens:
+                if token in processed_tokens:  # Skip further processing if the token has already been processed
                     continue
                 if doc_id not in scores:
                     scores[doc_id] = 0
                     doc_lengths[doc_id] = 0
                 scores[doc_id] += wt_d * wt_q
                 doc_lengths[doc_id] += wt_d ** 2
-            processed_tokens.add(token)
+            processed_tokens.add(token)  # Mark the token as processed.
 
         # Length Normalization
         for doc_id in scores:
             if doc_lengths[doc_id] > 0:
-                doc_length = doc_lengths[doc_id] ** 0.5
-                scores[doc_id] /= doc_length
+                doc_length = doc_lengths[doc_id] ** 0.5  # Calculate the document length for normalization.
+                scores[doc_id] /= doc_length  # Normalize the score
 
+        # Apply phrase bonus for consecutive query tokens in documents.
         for doc_id, positions_list in doc_positions.items():
-            if len(positions_list) > 1:
+            if len(positions_list) > 1:  # Check if there are at least two tokens with positions in the document.
                 for i in range(len(positions_list) - 1):
                     for pos in positions_list[i]:
-                        if any(pos + 1 == next_pos for next_pos in positions_list[i + 1]):
+                        if any(pos + 1 == next_pos for next_pos in positions_list[i + 1]):  # Check for consecutive positions.
                             scores[doc_id] += phrase_bonus
                             break
 
