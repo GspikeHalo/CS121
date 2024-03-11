@@ -1,3 +1,8 @@
+# If you haven't run the program yet,
+# please first run `search_engine/engine/database_processor.py` to initialize the database.
+# After it has finished running, you can run this program.
+# MongoDB is required.
+
 from search_engine.events.event_bus import EventBus
 from search_engine.engine.main import Engine
 from search_engine.views.main import MainView
