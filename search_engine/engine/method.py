@@ -67,24 +67,31 @@ class Method:
         :return: A dictionary with tokens as keys and their weights and positions as values.
         """
         try:
+            # Parse the HTML content into a tree structure for easy navigation.
             tree = html.fromstring(html_content)
+            # Initialize a dictionary to hold token weights and positions with default values.
             token_weights = defaultdict(lambda: {'weight': 0, 'positions': []})
+            # Counter to keep track of token positions.
             position_counter = 0
 
+            # Extract text from HTML and tokenize it.
             text_content = tree.text_content()
             tokens = word_tokenize(text_content)
+            # Iterate over tokens to calculate base weights and positions.
             for token in tokens:
                 normalized_token = token.lower()
                 token_weights[normalized_token]['weight'] += 1
                 token_weights[normalized_token]['positions'].append(position_counter)
                 position_counter += 1
 
+            # Define weights for specific HTML tags to emphasize their importance.
             tag_weights = {
                 'title': 2.5,
                 'h1': 2, 'h2': 1.5, 'h3': 1, 'h4': 0.5, 'h5': 0.5, 'h6': 0.5,
                 'b': 1.5, 'strong': 1.5
             }
 
+            # Apply additional weights for tokens found within specific tags.
             for tag, weight in tag_weights.items():
                 for element in tree.findall('.//{}'.format(tag)):
                     tokens = word_tokenize(element.text_content())
@@ -94,7 +101,7 @@ class Method:
                         token_weights[normalized_token]['positions'].append(position_counter)
                         position_counter += 1
 
-            # 处理段落的第一句
+            # Additional weight for tokens in the first sentence of paragraphs.
             for element in tree.findall('.//p'):
                 sentences = sent_tokenize(element.text_content())
                 if sentences:
@@ -102,6 +109,7 @@ class Method:
                     for token in first_sentence_tokens:
                         token_weights[token.lower()]['weight'] += 1
 
+            # Filter out stop words and non-alphabetic tokens, then lemmatize.
             stop_words = set(stopwords.words('english'))
             lemmatizer = WordNetLemmatizer()
             filtered_token_positions = {}
@@ -115,8 +123,10 @@ class Method:
                         filtered_token_positions[lemmatized_token]['weight'] += info['weight']
                         filtered_token_positions[lemmatized_token]['positions'].extend(info['positions'])
 
+            # Return the filtered and lemmatized token weights and positions.
             return filtered_token_positions
         except Exception as e:
+            # Print any exceptions and return an empty dictionary.
             print(e)
             return {}
 
